@@ -28,7 +28,19 @@ def create_attendance(db: Session, attendance: schemas.AttendanceCreate) -> mode
     ).first()
     
     if existing:
-        raise ValueError("Attendance record already exists for today")
+        # Update the existing record instead of creating a new one
+        attendance_data = attendance.model_dump()
+        for key, value in attendance_data.items():
+            setattr(existing, key, value)
+        
+        try:
+            db.commit()
+            db.refresh(existing)
+            return existing
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Error updating existing attendance: {str(e)}")
+            raise ValueError(f"Failed to update existing attendance: {str(e)}")
     
     # Create new attendance record
     attendance_data = attendance.model_dump()
