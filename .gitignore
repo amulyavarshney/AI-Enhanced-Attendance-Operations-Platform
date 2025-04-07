@@ -58,3 +58,10 @@ alembic/versions/*.py
 
 # Docker
 .docker/ 
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/build/
+frontend/coverage/
+frontend/tsconfig.tsbuildinfo
