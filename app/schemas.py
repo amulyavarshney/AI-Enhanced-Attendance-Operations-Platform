@@ -22,7 +22,7 @@ class EmployeeBase(BaseModel):
     last_name: str
     email: str
     phone: Optional[str] = None
-    role: Role = Role.EMPLOYEE
+    role: Role = Role.employee
     team_id: int
     hire_date: date = date.today()
 

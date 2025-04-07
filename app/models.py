@@ -6,16 +6,16 @@ import enum
 from .database import Base
 
 class AttendanceType(enum.Enum):
-    PRESENT = "present"
-    ABSENT = "absent"
-    HALF_DAY = "half_day"
-    WFH = "wfh"
-    LEAVE = "leave"
+    present = "present"
+    absent = "absent"
+    half_day = "half_day"
+    wfh = "wfh"
+    leave = "leave"
 
 class Role(enum.Enum):
-    EMPLOYEE = "employee"
-    MANAGER = "manager"
-    ADMIN = "admin"
+    employee = "employee"
+    manager = "manager"
+    admin = "admin"
 
 class Team(Base):
     __tablename__ = "teams"
@@ -35,7 +35,7 @@ class Employee(Base):
     last_name = Column(String, nullable=False)
     email = Column(String, unique=True, index=True)
     phone = Column(String, nullable=True)
-    role = Column(Enum(Role), default=Role.EMPLOYEE)
+    role = Column(Enum(Role), default=Role.employee)
     team_id = Column(Integer, ForeignKey("teams.id"))
     hire_date = Column(Date, default=datetime.utcnow().date)
     created_at = Column(DateTime, default=datetime.utcnow)
