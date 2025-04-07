@@ -9,6 +9,9 @@ class TeamBase(BaseModel):
 class TeamCreate(TeamBase):
     pass
 
+class TeamUpdate(TeamBase):
+    pass
+
 class Team(TeamBase):
     id: int
     created_at: datetime
@@ -24,9 +27,11 @@ class EmployeeBase(BaseModel):
     phone: Optional[str] = None
     role: Role = Role.employee
     team_id: int
-    hire_date: date = date.today()
 
 class EmployeeCreate(EmployeeBase):
+    hire_date: date = date.today()
+
+class EmployeeUpdate(EmployeeBase):
     pass
 
 class Employee(EmployeeBase):

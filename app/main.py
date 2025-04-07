@@ -63,13 +63,26 @@ async def root():
     Health check endpoint.
     
     Returns a welcome message and basic information about the API.
+
+    Returns:
+    - Welcome message
+    - API version
+    - Status
+    - Timestamp
+    
+    Raises:
+    - 500: Internal server error
     """
-    return {
-        "message": "Welcome to AI-Enhanced Attendance Operations Platform",
-        "version": "1.0.0",
-        "status": "healthy",
-        "timestamp": datetime.utcnow().isoformat()
-    }
+    try:
+        return {
+            "message": "Welcome to AI-Enhanced Attendance Operations Platform",
+            "version": "1.0.0",
+            "status": "healthy",
+            "timestamp": datetime.utcnow().isoformat()
+        }
+    except Exception as e:
+        logger.error(f"Error in health check: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 # Team Endpoints
 @app.post("/teams", 
@@ -89,11 +102,37 @@ async def create_team(
     
     Returns:
     - Created team
+
+    Raises:
+    - 500: Internal server error
     """
     try:
         return crud.create_team(db, team)
     except Exception as e:
         logger.error(f"Error creating team: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+@app.get("/teams",
+         response_model=List[schemas.Team],
+         tags=["Teams"],
+         summary="Get All Teams",
+         description="Get all teams.")
+async def get_teams(
+    db: Session = Depends(get_db)
+):
+    """
+    Get all teams.
+
+    Returns:
+    - List of teams
+
+    Raises:
+    - 500: Internal server error
+    """
+    try:
+        return crud.get_teams(db)
+    except Exception as e:
+        logger.error(f"Error fetching teams: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 @app.get("/teams/{team_id}", 
@@ -122,6 +161,142 @@ async def get_team(
         raise HTTPException(status_code=404, detail="Team not found")
     return team
 
+@app.put("/teams/{team_id}",
+         response_model=schemas.Team,
+         tags=["Teams"],
+         summary="Update Team",
+         description="Update a team by ID.")
+async def update_team(
+    team_id: int,
+    team: schemas.TeamUpdate,
+    db: Session = Depends(get_db)
+):
+    """
+    Update a team by ID.
+
+    Parameters:
+    - **team_id**: Team ID
+    - **team**: Team details
+    
+    Returns:
+    - Updated team
+
+    Raises:
+    - 404: Team not found
+    - 400: Invalid team details
+    - 500: Internal server error
+    """
+    try:
+        return crud.update_team(db, team_id, team)
+    except Exception as e:
+        logger.error(f"Error updating team: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+@app.delete("/teams/{team_id}",
+         tags=["Teams"],
+         summary="Delete Team",
+         description="Delete a team by ID.")
+async def delete_team(
+    team_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    Delete a team by ID.
+
+    Parameters:
+    - **team_id**: Team ID
+    
+    Returns:
+    - Success message
+    
+    Raises:
+    - 404: Team not found
+    - 500: Internal server error
+    """
+    try:
+        return crud.delete_team(db, team_id)
+    except Exception as e:
+        logger.error(f"Error deleting team: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+@app.get("/teams/{team_id}/employees",
+         response_model=List[schemas.Employee],
+         tags=["Teams"],
+         summary="Get Employees by Team",
+         description="Get employees by team ID.")
+async def get_employees_by_team(
+    team_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    Get employees by team ID.
+    """
+    return crud.get_employees_by_team(db, team_id)
+
+@app.get("/teams/{team_id}/attendance",
+         response_model=List[schemas.Attendance],
+         tags=["Teams"],
+         summary="Get Attendance by Team",
+         description="Get attendance by team ID.")
+async def get_attendance_by_team(
+    team_id: int,
+    start_date: Optional[date] = Query(None, description="Start date for filtering attendance records, format: YYYY-MM-DD"),
+    end_date: Optional[date] = Query(None, description="End date for filtering attendance records, format: YYYY-MM-DD"),
+    db: Session = Depends(get_db)
+):
+    """
+    Get attendance by team ID.
+
+    Parameters:
+    - **team_id**: Team ID
+    - **start_date**: Start date (optional)
+    - **end_date**: End date (optional)
+    
+    Returns:
+    - List of attendance records
+
+    Raises:
+    - 404: Team not found
+    - 500: Internal server error
+    """
+    try:
+        return crud.get_attendance_by_team(db, team_id, start_date, end_date)
+    except Exception as e:
+        logger.error(f"Error fetching attendance: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+@app.get("/teams/{team_id}/attendance/trends",
+         response_model=List[schemas.TeamTrends],
+         tags=["Teams"],
+         summary="Get Attendance Trends by Team",
+         description="Get attendance trends by team ID.")
+async def get_attendance_trends_by_team(
+    team_id: int,
+    start_date: Optional[date] = Query(None, description="Start date for filtering attendance trends, format: YYYY-MM-DD"),
+    end_date: Optional[date] = Query(None, description="End date for filtering attendance trends, format: YYYY-MM-DD"),
+    db: Session = Depends(get_db)
+):
+    """
+    Get attendance trends by team ID.
+
+    Parameters:
+    - **team_id**: Team ID
+    - **start_date**: Start date (optional)
+    - **end_date**: End date (optional)
+    
+    Returns:
+    - List of attendance trends
+
+    Raises:
+    - 404: Team not found
+    - 500: Internal server error
+    """
+    try:
+        return crud.get_attendance_trends_by_team(db, team_id, start_date, end_date)
+    except Exception as e:
+        logger.error(f"Error fetching attendance trends: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
 # Employee Endpoints
 @app.post("/employees", 
           response_model=schemas.Employee,
@@ -146,6 +321,23 @@ async def create_employee(
     except Exception as e:
         logger.error(f"Error creating employee: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+@app.get("/employees",
+         response_model=List[schemas.Employee],
+         tags=["Employees"],
+         summary="Get All Employees",
+         description="Get all employees.")
+async def get_employees(
+    db: Session = Depends(get_db)
+):
+    """
+    Get all employees.
+
+    Returns:
+    - List of employees
+    """
+    return crud.get_employees(db)
+
 
 @app.get("/employees/{employee_id}", 
          response_model=schemas.Employee,
@@ -173,39 +365,97 @@ async def get_employee(
         raise HTTPException(status_code=404, detail="Employee not found")
     return employee
 
-# Attendance Endpoints
-@app.get("/attendance/{employee_id}", 
-         response_model=List[schemas.Attendance],
-         tags=["Attendance"],
-         summary="Get Employee Attendance",
-         description="Retrieve all attendance records for a specific employee.")
-async def get_employee_attendance(
+@app.put("/employees/{employee_id}",
+         response_model=schemas.Employee,
+         tags=["Employees"],
+         summary="Update Employee",
+         description="Update an existing employee.")
+async def update_employee(
+    employee_id: int,
+    employee: schemas.EmployeeUpdate,
+    db: Session = Depends(get_db)
+):
+    """
+    Update an existing employee.
+
+    Parameters:
+    - **employee_id**: Employee ID
+    - **employee**: Updated employee details
+    
+    Returns:
+    - Updated employee
+
+    Raises:
+    - 404: Employee not found
+    - 400: Invalid employee details
+    - 500: Internal server error
+    """
+    try:
+        return crud.update_employee(db, employee_id, employee)
+    except Exception as e:
+        logger.error(f"Error updating employee: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+@app.delete("/employees/{employee_id}",
+         tags=["Employees"],
+         summary="Delete Employee",
+         description="Delete an existing employee.")
+async def delete_employee(
     employee_id: int,
     db: Session = Depends(get_db)
 ):
     """
-    Get attendance records for a specific employee.
-    
+    Delete an existing employee.
+
     Parameters:
-    - **employee_id**: The unique identifier of the employee
+    - **employee_id**: Employee ID
+
+    Returns:
+    - Success message
+
+    Raises:
+    - 404: Employee not found
+    - 500: Internal server error
+    """
+    try:
+        return crud.delete_employee(db, employee_id)
+    except Exception as e:
+        logger.error(f"Error deleting employee: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+@app.get("/employees/{employee_id}/attendance",
+         response_model=List[schemas.Attendance],
+         tags=["Employees"],
+         summary="Get Employee Attendance",
+         description="Get attendance records for a specific employee.")
+async def get_employee_attendance(
+    employee_id: int,
+    start_date: Optional[date] = Query(None, description="Start date for filtering attendance records, format: YYYY-MM-DD"),
+    end_date: Optional[date] = Query(None, description="End date for filtering attendance records, format: YYYY-MM-DD"),
+    db: Session = Depends(get_db)
+):
+    """
+    Get attendance records for a specific employee.
+
+    Parameters:
+    - **employee_id**: Employee ID
+    - **start_date**: Start date (optional)
+    - **end_date**: End date (optional)
     
     Returns:
-    - List of attendance records for the specified employee
-    
+    - List of attendance records
+
     Raises:
-    - 404: If employee not found
-    - 500: For server errors
+    - 404: Employee not found
+    - 500: Internal server error
     """
-    employee = crud.get_employee(db, employee_id)
-    if not employee:
-        raise HTTPException(status_code=404, detail="Employee not found")
-        
     try:
-        return crud.get_employee_attendance(db, employee_id)
+        return crud.get_employee_attendance(db, employee_id, start_date, end_date)
     except Exception as e:
         logger.error(f"Error fetching attendance: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
+# Attendance Endpoints
 @app.post("/attendance", 
           response_model=schemas.Attendance,
           tags=["Attendance"],
@@ -242,6 +492,67 @@ async def create_attendance(
         logger.error(f"Error creating attendance: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
+@app.get("/attendance/",
+         response_model=List[schemas.Attendance],
+         tags=["Attendance"],
+         summary="Get All Attendance Records",
+         description="Get all attendance records.")
+async def get_all_attendance(
+    db: Session = Depends(get_db),
+    start_date: Optional[date] = Query(None, description="Start date for filtering attendance records, format: YYYY-MM-DD"),
+    end_date: Optional[date] = Query(None, description="End date for filtering attendance records, format: YYYY-MM-DD")
+): 
+    """
+    Get all attendance records.
+
+    Parameters:
+    - **start_date**: Start date (optional)
+    - **end_date**: End date (optional)
+
+    Returns:
+    - List of attendance records
+
+    Raises:
+    - 500: For server errors
+    """
+    try:
+        return crud.get_attendance_by_date(db, start_date, end_date)
+    except Exception as e:
+        logger.error(f"Error fetching attendance: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+@app.get("/attendance/{attendance_id}",
+         response_model=schemas.Attendance,
+         tags=["Attendance"],
+         summary="Get Attendance Record",
+         description="Get an attendance record by ID.")
+async def get_attendance(
+    attendance_id: int,
+    start_date: Optional[date] = Query(None, description="Start date for filtering attendance records, format: YYYY-MM-DD"),
+    end_date: Optional[date] = Query(None, description="End date for filtering attendance records, format: YYYY-MM-DD"),
+    db: Session = Depends(get_db)
+):
+    """
+    Get an attendance record by ID.
+
+    Parameters:
+    - **attendance_id**: The ID of the attendance record to get
+    - **start_date**: Start date (optional)
+    - **end_date**: End date (optional)
+    
+    Returns:
+    - Attendance record details
+
+    Raises:
+    - 404: If attendance record not found
+    - 500: For server errors
+    """
+    try:
+        return crud.get_attendance_by_id(db, attendance_id, start_date, end_date)
+    except Exception as e:
+        logger.error(f"Error fetching attendance: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
 @app.put("/attendance/{attendance_id}", 
          response_model=schemas.Attendance,
          tags=["Attendance"],
@@ -274,44 +585,6 @@ async def update_attendance(
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.error(f"Error updating attendance: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
-
-@app.get("/attendance/team/{team_id}/trends",
-         response_model=List[schemas.TeamTrends],
-         tags=["Analytics"],
-         summary="Get Team Attendance Trends",
-         description="Retrieve attendance trends and statistics for a specific team.")
-async def get_team_attendance_trends(
-    team_id: int,
-    db: Session = Depends(get_db)
-):
-    """
-    Get attendance trends for a team.
-    
-    Parameters:
-    - **team_id**: The ID of the team
-    
-    Returns:
-    - List of team attendance trends including:
-        - total_employees: Total number of employees in the team
-        - present_count: Number of present employees
-        - absent_count: Number of absent employees
-        - wfh_count: Number of employees working from home
-        - half_day_count: Number of employees with half-day attendance
-        - leave_count: Number of employees on leave
-    
-    Raises:
-    - 404: If team not found
-    - 500: For server errors
-    """
-    try:
-        return crud.get_team_attendance_trends(db, team_id)
-    except ValueError as e:
-        if "not found" in str(e):
-            raise HTTPException(status_code=404, detail=str(e))
-        raise HTTPException(status_code=400, detail=str(e))
-    except Exception as e:
-        logger.error(f"Error fetching team trends: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 @app.get("/ai/insights",

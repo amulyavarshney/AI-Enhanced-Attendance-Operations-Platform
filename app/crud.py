@@ -8,6 +8,10 @@ import logging
 logger = logging.getLogger(__name__)
 
 # Employee CRUD
+def get_employees(db: Session) -> List[models.Employee]:
+    """Get all employees"""
+    return db.query(models.Employee).all()
+
 def get_employee(db: Session, employee_id: int) -> Optional[models.Employee]:
     """Get an employee by ID"""
     return db.query(models.Employee).filter(models.Employee.id == employee_id).first()
@@ -27,6 +31,10 @@ def create_employee(db: Session, employee: schemas.EmployeeCreate) -> models.Emp
         raise ValueError(f"Failed to create employee: {str(e)}")
 
 # Team CRUD
+def get_teams(db: Session) -> List[models.Team]:
+    """Get all teams"""
+    return db.query(models.Team).all()
+
 def get_team(db: Session, team_id: int) -> Optional[models.Team]:
     """Get a team by ID"""
     return db.query(models.Team).filter(models.Team.id == team_id).first()
@@ -45,16 +53,155 @@ def create_team(db: Session, team: schemas.TeamCreate) -> models.Team:
         logger.error(f"Error creating team: {str(e)}")
         raise ValueError(f"Failed to create team: {str(e)}")
 
+def update_team(db: Session, team_id: int, team: schemas.TeamUpdate) -> models.Team:
+    """Update a team by ID"""
+    db_team = get_team(db, team_id)
+    if not db_team:
+        raise ValueError("Team not found")
+
+    team_data = {k: v for k, v in team.model_dump().items() if v is not None}
+    for key, value in team_data.items():
+        setattr(db_team, key, value)
+    
+    try:
+        db.commit()
+        db.refresh(db_team)
+        return db_team 
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Error updating team: {str(e)}")
+        raise ValueError(f"Failed to update team: {str(e)}")
+
+def delete_team(db: Session, team_id: int) -> None:
+    """Delete a team by ID"""
+    db_team = get_team(db, team_id)
+    if not db_team:
+        raise ValueError("Team not found")
+    
+    try:
+        db.delete(db_team)
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Error deleting team: {str(e)}")
+        raise ValueError(f"Failed to delete team: {str(e)}")
+
+def get_employees_by_team(db: Session, team_id: int) -> List[models.Employee]:
+    """Get employees by team ID"""
+    return db.query(models.Employee).filter(models.Employee.team_id == team_id).all()
+
+def get_attendance_by_team(db: Session, team_id: int, start_date: Optional[date] = None, end_date: Optional[date] = None) -> List[models.Attendance]:
+    """Get attendance by team ID"""
+    employees = get_employees_by_team(db, team_id)
+    employee_ids = [emp.id for emp in employees]
+    query = db.query(models.Attendance).filter(models.Attendance.employee_id.in_(employee_ids))
+    if start_date:
+        query = query.filter(models.Attendance.date >= start_date)
+    if end_date:
+        query = query.filter(models.Attendance.date <= end_date)
+    return query.all()
+
+def get_attendance_trends_by_team(db: Session, team_id: int, start_date: Optional[date] = None, end_date: Optional[date] = None) -> List[models.TeamTrends]:
+    """Get attendance trends by team ID"""
+    attendance = get_attendance_by_team(db, team_id, start_date, end_date)
+    trends = []
+    # get datewise trends
+    date_trends = {}
+    for attendance in attendance:
+        date = attendance.date
+        if date not in date_trends:
+            date_trends[date] = models.TeamTrends(
+                team_id=team_id,
+                date=date,
+                total_employees=0,
+                present_count=0,
+                absent_count=0,
+                wfh_count=0,
+                half_day_count=0,
+                leave_count=0
+            )
+        date_trends[date].total_employees += 1
+        if attendance.status == models.AttendanceType.present:
+            date_trends[date].present_count += 1
+        elif attendance.status == models.AttendanceType.absent:
+            date_trends[date].absent_count += 1
+        elif attendance.status == models.AttendanceType.wfh:
+            date_trends[date].wfh_count += 1
+        elif attendance.status == models.AttendanceType.half_day:
+            date_trends[date].half_day_count += 1
+        elif attendance.status == models.AttendanceType.leave:
+            date_trends[date].leave_count += 1
+    for date, trend in date_trends.items():
+        trends.append(trend)
+    return trends
+    
+# Employee CRUD
+def get_employee(db: Session, employee_id: int) -> Optional[models.Employee]:
+    """Get an employee by ID"""
+    return db.query(models.Employee).filter(models.Employee.id == employee_id).first()
+
+def create_employee(db: Session, employee: schemas.EmployeeCreate) -> models.Employee:
+    """Create a new employee"""
+    db_employee = models.Employee(**employee.model_dump())
+    db.add(db_employee)
+    
+    try:
+        db.commit()
+        db.refresh(db_employee)
+        return db_employee
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Error creating employee: {str(e)}")
+        raise ValueError(f"Failed to create employee: {str(e)}")
+
+def update_employee(db: Session, employee_id: int, employee: schemas.EmployeeUpdate) -> models.Employee:
+    """Update an employee by ID"""
+    db_employee = get_employee(db, employee_id)
+    if not db_employee:
+        raise ValueError("Employee not found")
+    
+    employee_data = {k: v for k, v in employee.model_dump().items() if v is not None}
+    for key, value in employee_data.items():
+        setattr(db_employee, key, value)
+    
+    try:
+        db.commit()
+        db.refresh(db_employee)
+        return db_employee
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Error updating employee: {str(e)}")
+        raise ValueError(f"Failed to update employee: {str(e)}")
+
+def delete_employee(db: Session, employee_id: int) -> None:
+    """Delete an employee by ID"""
+    db_employee = get_employee(db, employee_id)
+    if not db_employee:
+        raise ValueError("Employee not found")
+    
+    try:
+        db.delete(db_employee)
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Error deleting employee: {str(e)}")
+        raise ValueError(f"Failed to delete employee: {str(e)}")
+
 # Attendance CRUD
 def get_attendance(db: Session, attendance_id: int) -> Optional[models.Attendance]:
     """Get an attendance record by ID"""
     return db.query(models.Attendance).filter(models.Attendance.id == attendance_id).first()
 
-def get_employee_attendance(db: Session, employee_id: int) -> List[models.Attendance]:
+def get_employee_attendance(db: Session, employee_id: int, start_date: Optional[date] = None, end_date: Optional[date] = None) -> List[models.Attendance]:
     """Get attendance records for an employee"""
-    return db.query(models.Attendance).filter(
+    query = db.query(models.Attendance).filter(
         models.Attendance.employee_id == employee_id
-    ).order_by(models.Attendance.date.desc()).all()
+    )
+    if start_date:
+        query = query.filter(models.Attendance.date >= start_date)
+    if end_date:
+        query = query.filter(models.Attendance.date <= end_date)
+    return query.order_by(models.Attendance.date.desc()).all()
 
 def create_attendance(db: Session, attendance: schemas.AttendanceCreate) -> models.Attendance:
     """Create a new attendance record with validation"""
@@ -104,6 +251,24 @@ def create_attendance(db: Session, attendance: schemas.AttendanceCreate) -> mode
         db.rollback()
         logger.error(f"Error creating attendance: {str(e)}")
         raise ValueError(f"Failed to create attendance: {str(e)}")
+
+def get_attendance_by_date(db: Session, start_date: Optional[date] = None, end_date: Optional[date] = None) -> List[models.Attendance]:
+    """Get attendance records by date"""
+    query = db.query(models.Attendance)
+    if start_date:
+        query = query.filter(models.Attendance.date >= start_date)
+    if end_date:
+        query = query.filter(models.Attendance.date <= end_date)
+    return query.all()
+
+def get_attendance_by_id(db: Session, attendance_id: int, start_date: Optional[date] = None, end_date: Optional[date] = None) -> List[models.Attendance]:
+    """Get attendance records by attendance ID"""
+    query = db.query(models.Attendance).filter(models.Attendance.id == attendance_id)
+    if start_date:
+        query = query.filter(models.Attendance.date >= start_date)
+    if end_date:
+        query = query.filter(models.Attendance.date <= end_date)
+    return query.first()
 
 def update_attendance(db: Session, attendance_id: int, attendance: schemas.AttendanceUpdate) -> models.Attendance:
     """Update an existing attendance record with validation"""
