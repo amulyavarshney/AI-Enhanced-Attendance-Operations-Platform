@@ -66,6 +66,7 @@ Once the application is running, you can access:
 - `PUT /attendance/{attendance_id}` - Update an attendance record
 - `GET /attendance/team/{team_id}/trends` - Get attendance trends for a team
 - `GET /ai/insights` - Get AI-generated insights about attendance
+- `POST /admin/reset-database` - Reset the database (admin/dev only)
 
 ## Development Setup
 
@@ -85,17 +86,40 @@ pip install -r requirements.txt
 alembic upgrade head
 ```
 
-4. Run the application locally:
+4. Run the application:
 ```bash
+# Basic run
 uvicorn app.main:app --reload
+
+# Run with the helper script (supports database reset)
+python run_app.py
+
+# Run with database reset and mock data
+python run_app.py --reset-db --with-mock-data
 ```
 
 ## Testing
 
-Run the test suite:
+### Run Tests
+
+Using the test runner script (recommended):
+```bash
+# Create test databases and run all tests
+python prepare_test_env.py --create-dbs --run-tests
+
+# Just create test databases
+python prepare_test_env.py --create-dbs
+
+# Run tests with the simplified test runner
+python run_tests.py
+```
+
+Run tests manually:
 ```bash
 pytest app/tests/
 ```
+
+### Load Testing
 
 Run load tests using Locust:
 ```bash
@@ -124,6 +148,50 @@ locust -f locustfile.py --host=http://localhost:8000
 - `check_in`: Check-in time (nullable)
 - `check_out`: Check-out time (nullable)
 - `notes`: Additional notes (nullable)
+
+## Database Management
+
+### Setup and Migrations
+
+Run database migrations:
+```bash
+alembic upgrade head
+```
+
+### Reset Database (Development/Testing)
+
+The platform provides an endpoint to reset the database in development or testing environments:
+
+```bash
+# Reset with no test data (asynchronous)
+curl -X POST "http://localhost:8000/admin/reset-database?api_key=dev_reset_key"
+
+# Reset with mock test data (asynchronous)
+curl -X POST "http://localhost:8000/admin/reset-database?api_key=dev_reset_key&include_mock_data=true"
+
+# Synchronous reset (wait for completion)
+curl -X POST "http://localhost:8000/admin/reset-database?api_key=dev_reset_key&synchronous=true"
+
+# Synchronous reset with mock data
+curl -X POST "http://localhost:8000/admin/reset-database?api_key=dev_reset_key&synchronous=true&include_mock_data=true"
+```
+
+You can also reset the database when starting the application:
+
+```bash
+# Start app with database reset
+python run_app.py --reset-db
+
+# Start app with database reset and mock data
+python run_app.py --reset-db --with-mock-data
+
+# Start app with synchronous database reset
+python run_app.py --reset-db --sync-reset
+```
+
+⚠️ **Warning**: This endpoint drops all tables and data. Use only in development/testing environments.
+
+The API key can be configured through the `ADMIN_API_KEY` environment variable. The default key is `dev_reset_key` and should be changed in production.
 
 ## Contributing
 
