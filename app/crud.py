@@ -234,4 +234,28 @@ def get_team_attendance_trends(db: Session, team_id: int) -> List[schemas.TeamTr
             models.TeamTrends.team_id == team_id
         ).order_by(models.TeamTrends.date.desc()).all()
     
-    return trends 
+    return trends
+
+def save_ai_insight(db: Session, insight: schemas.AIInsight) -> models.AIInsight:
+    """Save an AI insight to the database"""
+    db_insight = models.AIInsight(
+        query=insight.query,
+        summary=insight.summary,
+        details=insight.details,
+        generated_at=insight.generated_at
+    )
+    
+    db.add(db_insight)
+    
+    try:
+        db.commit()
+        db.refresh(db_insight)
+        return db_insight
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Error saving AI insight: {str(e)}")
+        raise ValueError(f"Failed to save AI insight: {str(e)}")
+
+def get_ai_insights(db: Session, limit: int = 10) -> List[models.AIInsight]:
+    """Get saved AI insights from the database, ordered by most recent first"""
+    return db.query(models.AIInsight).order_by(models.AIInsight.generated_at.desc()).limit(limit).all() 

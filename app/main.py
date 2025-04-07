@@ -349,6 +349,68 @@ async def get_ai_insights(
         logger.error(f"Error generating AI insights: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
+@app.get("/ai/sql-insights",
+         response_model=schemas.AIInsight,
+         tags=["AI Insights"],
+         summary="Get SQL-based AI Insights",
+         description="Convert natural language to SQL and get data-driven insights.")
+async def get_sql_insights(
+    query: str,
+    db: Session = Depends(get_db)
+):
+    """
+    Convert a natural language query to SQL, execute it, and provide AI-powered insights.
+    
+    Parameters:
+    - **query**: Natural language query about attendance data
+    
+    Returns:
+    - AI-generated insights including:
+        - summary: Analysis of the data retrieved
+        - details: Contains the generated SQL, data, and other metadata
+        - generated_at: Timestamp of when the insights were generated
+    
+    Example Queries:
+    - "Show me attendance trends for the engineering team last month"
+    - "Which employees have the highest WFH percentage?"
+    - "Compare attendance rates between teams"
+    
+    Raises:
+    - 500: For server errors, SQL generation issues, or query execution problems
+    """
+    try:
+        return await ai_service.analyze_custom_query(query, db)
+    except Exception as e:
+        logger.error(f"Error generating SQL insights: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+@app.get("/ai/insights/history",
+         response_model=List[schemas.AIInsight],
+         tags=["AI Insights"],
+         summary="Get Past AI Insights",
+         description="Retrieve previously generated AI insights.")
+async def get_insights_history(
+    limit: int = Query(10, ge=1, le=100),
+    db: Session = Depends(get_db)
+):
+    """
+    Retrieve past AI insights from the database.
+    
+    Parameters:
+    - **limit**: Maximum number of insights to return (1-100, default 10)
+    
+    Returns:
+    - List of AI insights ordered by most recent first
+    
+    Raises:
+    - 500: For server errors
+    """
+    try:
+        return crud.get_ai_insights(db, limit)
+    except Exception as e:
+        logger.error(f"Error retrieving AI insights: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
 # Admin/Developer Endpoints
 
 @app.post("/admin/reset-database", 
