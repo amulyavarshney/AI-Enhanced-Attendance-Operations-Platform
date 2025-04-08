@@ -6,6 +6,8 @@ A modern attendance management system with AI-powered insights and analytics, bu
 
 This platform provides a complete solution for managing employee attendance with intelligent insights. It combines a robust backend API with a modern frontend interface to offer an intuitive attendance tracking experience enhanced by AI-powered analytics.
 
+For detailed technical information, please refer to the [comprehensive documentation](DOCUMENTATION.md).
+
 ## Key Features
 
 - 📱 **Complete Attendance Management**: Track employee check-ins, check-outs, and attendance statuses
@@ -70,6 +72,25 @@ This platform provides a complete solution for managing employee attendance with
 - **Development**: Hot reloading for both frontend and backend
 
 ## Database Schema
+
+### Entity Relationship Diagram
+
+```
+┌──────────┐       ┌───────────┐       ┌─────────────┐
+│          │       │           │       │             │
+│   Team   │◄──────┤  Employee │◄──────┤  Attendance │
+│          │1     *│           │1     *│             │
+└────┬─────┘       └───────────┘       └─────────────┘
+     │
+     │1
+     │
+     │*
+┌────▼─────┐       ┌────────────┐
+│          │       │            │
+│TeamTrends│       │ AIInsight  │
+│          │       │            │
+└──────────┘       └────────────┘
+```
 
 ### Teams
 - `id`: Primary key
@@ -334,6 +355,28 @@ alembic upgrade head
 
 # Rollback one migration
 alembic downgrade -1
+```
+
+### Initialize Database Schema
+
+```bash
+# Load the schema from SQL file
+psql -U postgres -d attendance_db -f scripts/schema.sql
+```
+
+### Database Queries
+
+```bash
+# Connect to the database
+psql -U postgres -d attendance_db
+
+# List the tables
+\dt
+
+# Query sample data
+SELECT * FROM teams;
+SELECT * FROM employees;
+SELECT * FROM attendance LIMIT 10;
 ```
 
 ### Reset Database (Development Only)
