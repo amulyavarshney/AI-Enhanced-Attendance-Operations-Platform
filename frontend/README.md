@@ -1,73 +1,143 @@
-# Welcome to your Lovable project
+# AI-Enhanced Attendance Platform Frontend
 
-## Project info
+The frontend application for the AI-Enhanced Attendance Operations Platform built with React, TypeScript, and Tailwind CSS.
 
-**URL**: https://lovable.dev/projects/2414daeb-bb9c-475a-a78d-e504285ce372
+## Overview
 
-## How can I edit this code?
+This frontend provides a modern, responsive user interface for managing employee attendance, team organization, and accessing AI-powered insights. It communicates with the FastAPI backend to provide a complete attendance management solution.
 
-There are several ways of editing your application.
+## Tech Stack
 
-**Use Lovable**
+- **Framework**: React with TypeScript
+- **UI Library**: shadcn/ui components
+- **Styling**: Tailwind CSS
+- **Build Tool**: Vite
+- **State Management**: React Context API
+- **HTTP Client**: Axios
+- **Date/Time Handling**: date-fns
+- **Charts**: Recharts for data visualization
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/2414daeb-bb9c-475a-a78d-e504285ce372) and start prompting.
+## Key Features
 
-Changes made via Lovable will be committed automatically to this repo.
+- **Dashboard**: Overview of attendance metrics and recent activity
+- **Teams Management**: Create, edit, and manage teams
+- **Employee Directory**: Manage employee information and view attendance history
+- **Attendance Tracking**: Record and manage daily attendance
+- **Analytics**: Visual reports and statistics
+- **AI Insights**: Natural language queries and AI-generated insights
+- **Responsive Design**: Works on desktop, tablet, and mobile devices
 
-**Use your preferred IDE**
+## Project Structure
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+```
+frontend/
+├── src/
+│   ├── components/         # Reusable UI components
+│   │   ├── layout/         # Layout components (header, sidebar, etc.)
+│   │   └── ui/             # UI primitives from shadcn/ui
+│   ├── hooks/              # Custom React hooks
+│   ├── lib/                # Utility functions and configs
+│   ├── pages/              # Page components
+│   │   ├── Dashboard.tsx   # Dashboard page
+│   │   ├── Teams.tsx       # Teams management
+│   │   ├── Employees.tsx   # Employee management
+│   │   ├── Attendance.tsx  # Attendance tracking
+│   │   ├── Analytics.tsx   # Analytics and reports
+│   │   └── AIInsights.tsx  # AI Insights interface
+│   ├── services/           # API service functions
+│   ├── types/              # TypeScript type definitions
+│   ├── utils/              # Utility functions
+│   ├── App.tsx             # Main application component
+│   └── main.tsx            # Application entry point
+├── public/                 # Static assets
+├── index.html              # HTML template
+├── vite.config.ts          # Vite configuration
+├── tailwind.config.ts      # Tailwind CSS configuration
+└── package.json            # Project dependencies
 ```
 
-**Edit a file directly in GitHub**
+## Pages
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+### Dashboard
+- Overview of key metrics
+- Recent activity feed
+- Quick access to common actions
 
-**Use GitHub Codespaces**
+### Teams
+- Team creation and management
+- Team analytics view
+- Employee assignments
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+### Employees
+- Employee directory with search and filtering
+- Employee profile management
+- Attendance history for individual employees
 
-## What technologies are used for this project?
+### Attendance
+- Daily attendance recording
+- Status updates (present, absent, WFH, etc.)
+- Check-in/check-out tracking
 
-This project is built with:
+### Analytics
+- Attendance trends visualization
+- Team comparison charts
+- Exportable reports
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+### AI Insights
+- Natural language query interface
+- AI-generated attendance insights
+- Custom SQL-based analytics
 
-## How can I deploy this project?
+## Development
 
-Simply open [Lovable](https://lovable.dev/projects/2414daeb-bb9c-475a-a78d-e504285ce372) and click on Share -> Publish.
+### Prerequisites
+- Node.js (v20+)
+- npm or bun
 
-## Can I connect a custom domain to my Lovable project?
+### Setup
 
-Yes it is!
+1. Clone the repository and navigate to the frontend directory:
+```sh
+cd frontend
+```
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+2. Install dependencies:
+```sh
+npm install
+# or
+bun install
+```
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+3. Create a `.env` file:
+```
+VITE_API_URL=http://localhost:8000
+```
+
+4. Start the development server:
+```sh
+npm run dev
+# or
+bun run dev
+```
+
+The application will be available at http://localhost:3000.
+
+### Build for Production
+
+```sh
+npm run build
+# or
+bun run build
+```
+
+## API Integration
+
+The frontend communicates with the FastAPI backend through services defined in the `services` directory. All API calls are centralized and consistent error handling is implemented.
+
+## UI Component Library
+
+This project uses shadcn/ui, a collection of reusable components built on Radix UI primitives. Components are imported and customized for the application's needs.
+
+## License
+
+This project is licensed under the MIT License - see the main [LICENSE](../LICENSE) file for details.

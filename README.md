@@ -1,36 +1,191 @@
 # AI-Enhanced Attendance Operations Platform
 
-A modern attendance management system with AI-powered insights and analytics, built with FastAPI and PostgreSQL.
+A modern attendance management system with AI-powered insights and analytics, built with FastAPI and React.
 
-## Features
+## Overview
 
-- 🔐 REST APIs for attendance management
-- 📊 PostgreSQL database with SQLAlchemy ORM
-- 🤖 AI-powered insights using OpenAI
-- 👥 Team-based attendance tracking
-- 📈 Attendance trends and analytics
-- 🐳 Docker containerization
-- 📝 Comprehensive API documentation
-- 🔄 Database migrations with Alembic
-- 🧪 Test suite with pytest
+This platform provides a complete solution for managing employee attendance with intelligent insights. It combines a robust backend API with a modern frontend interface to offer an intuitive attendance tracking experience enhanced by AI-powered analytics.
+
+## Key Features
+
+- 📱 **Complete Attendance Management**: Track employee check-ins, check-outs, and attendance statuses
+- 👥 **Team Management**: Organize employees into teams with dedicated views
+- 📊 **Comprehensive Analytics**: View attendance trends, patterns, and statistics
+- 🧠 **AI-Powered Insights**: Generate natural language insights about attendance data
+- 💬 **Natural Language Queries**: Ask questions about attendance in plain English
+- 🔄 **SQL Translation**: Natural language to SQL translation for custom queries
+- 📱 **Responsive UI**: Modern React frontend with responsive design
+- 📊 **Robust API**: FastAPI backend with proper documentation
+- 🐳 **Containerized Deployment**: Docker and Docker Compose setup
+
+## Architecture
+
+```
+┌─────────────────┐      ┌─────────────────┐      ┌─────────────────┐
+│                 │      │                 │      │                 │
+│  React Frontend │◄────►│   FastAPI API   │◄────►│   PostgreSQL    │
+│                 │      │                 │      │                 │
+└─────────────────┘      └────────┬────────┘      └─────────────────┘
+                                  │
+                                  ▼
+                         ┌─────────────────┐      
+                         │                 │      
+                         │   Azure OpenAI  │      
+                         │                 │      
+                         └─────────────────┘      
+```
+
+### Key Components
+
+1. **React Frontend**: TypeScript-based UI with components for teams, employees, attendance, and AI insights
+2. **FastAPI Backend**: Python API with endpoints for all CRUD operations and AI features
+3. **PostgreSQL Database**: Relational database with tables for teams, employees, attendance, and AI insights
+4. **Azure OpenAI Integration**: AI services for natural language processing and insights generation
 
 ## Tech Stack
 
-- **Backend**: FastAPI (Python 3.11+)
-- **Database**: PostgreSQL
+### Backend
+- **Language**: Python 3.11+
+- **Framework**: FastAPI
 - **ORM**: SQLAlchemy
-- **AI**: OpenAI GPT-4
-- **Container**: Docker & Docker Compose
+- **Database**: PostgreSQL
+- **Migrations**: Alembic
+- **AI**: Azure OpenAI (GPT-4)
 - **Testing**: pytest, FastAPI TestClient
 - **Load Testing**: Locust
-- **Documentation**: OpenAPI (Swagger UI)
+- **API Documentation**: OpenAPI (Swagger UI)
+
+### Frontend
+- **Language**: TypeScript
+- **Framework**: React
+- **UI Components**: shadcn/ui
+- **Styling**: Tailwind CSS
+- **Build Tool**: Vite
+- **State Management**: React Context API
+- **HTTP Client**: Axios
+
+### DevOps
+- **Containerization**: Docker, Docker Compose
+- **Version Control**: Git
+- **Development**: Hot reloading for both frontend and backend
+
+## Database Schema
+
+### Teams
+- `id`: Primary key
+- `name`: Team name
+- `created_at`: Creation timestamp
+- `updated_at`: Update timestamp
+
+### Employees
+- `id`: Primary key
+- `first_name`: Employee first name
+- `last_name`: Employee last name
+- `email`: Unique email address
+- `phone`: Contact number (optional)
+- `role`: Enum (employee, manager, admin)
+- `team_id`: Foreign key to Teams
+- `hire_date`: Employee hire date
+- `created_at`: Creation timestamp
+- `updated_at`: Update timestamp
+
+### Attendance
+- `id`: Primary key
+- `employee_id`: Foreign key to Employees
+- `date`: Date of attendance
+- `status`: Enum (present, absent, half_day, wfh, leave)
+- `check_in`: Check-in time (nullable)
+- `check_out`: Check-out time (nullable)
+- `notes`: Additional notes (nullable)
+- `created_at`: Creation timestamp
+- `updated_at`: Update timestamp
+
+### TeamTrends
+- `id`: Primary key
+- `team_id`: Foreign key to Teams
+- `date`: Date of trend data
+- `total_employees`: Total employee count
+- `present_count`: Present employees count
+- `absent_count`: Absent employees count
+- `wfh_count`: Work from home employees count
+- `half_day_count`: Half day employees count
+- `leave_count`: Employees on leave count
+
+### AIInsight
+- `id`: Primary key
+- `query`: Original user query
+- `summary`: AI-generated summary
+- `details`: Detailed insights (JSON)
+- `generated_at`: Generation timestamp
+
+## API Endpoints
+
+### Health Check
+- `GET /`: Basic health check and welcome message
+
+### Teams
+- `POST /teams`: Create a new team
+- `GET /teams`: Get all teams
+- `GET /teams/{team_id}`: Get a specific team
+- `PUT /teams/{team_id}`: Update a team
+- `DELETE /teams/{team_id}`: Delete a team
+- `GET /teams/{team_id}/employees`: Get employees in a team
+- `GET /teams/{team_id}/attendance`: Get attendance for a team
+- `GET /teams/{team_id}/attendance/trends`: Get attendance trends for a team
+
+### Employees
+- `POST /employees`: Create a new employee
+- `GET /employees`: Get all employees
+- `GET /employees/{employee_id}`: Get a specific employee
+- `PUT /employees/{employee_id}`: Update an employee
+- `DELETE /employees/{employee_id}`: Delete an employee
+- `GET /employees/{employee_id}/attendance`: Get attendance for an employee
+
+### Attendance
+- `POST /attendance`: Create a new attendance record
+- `GET /attendance`: Get all attendance records
+- `GET /attendance/{attendance_id}`: Get a specific attendance record
+- `PUT /attendance/{attendance_id}`: Update an attendance record
+
+### AI Insights
+- `GET /ai/insights`: Get AI-generated insights
+- `GET /ai/sql-insights`: Get SQL-based AI insights
+- `GET /ai/insights/history`: Get past AI insights
+
+### Admin
+- `POST /admin/reset-database`: Reset the database (development/testing only)
+
+## AI Capabilities
+
+### SQL Translation
+The platform can convert natural language queries to SQL using Azure OpenAI, allowing users to ask questions about attendance data in plain English.
+
+### Pattern Recognition
+The AI service identifies patterns in attendance data, such as:
+- Employees with high absence rates
+- Teams with above-average work from home days
+- Unusual attendance patterns 
+- Trends in attendance across teams and time periods
+
+### Fallback Mechanisms
+If SQL translation fails, the system falls back to pattern-based analysis using predefined templates.
+
+## Frontend Pages
+
+- **Dashboard**: Overview of key metrics and recent activities
+- **Teams**: Team management and team-level analytics
+- **Employees**: Employee management and individual stats
+- **Attendance**: Daily attendance tracking and management
+- **Analytics**: Detailed attendance analytics and trends
+- **AI Insights**: Natural language query interface for attendance data
 
 ## Prerequisites
 
 - Python 3.11+
-- Docker and Docker Compose
-- PostgreSQL
-- OpenAI API key
+- Node.js and npm/bun
+- Docker and Docker Compose (for containerized deployment)
+- PostgreSQL (if running locally without Docker)
+- Azure OpenAI API key (or OpenAI API key)
 
 ## Quick Start
 
@@ -40,10 +195,10 @@ git clone https://github.com/yourusername/ai-attendance-platform.git
 cd ai-attendance-platform
 ```
 
-2. Create a `.env` file in the root directory:
+2. Create a `.env` file in the root directory (copy from .env.example):
 ```bash
-DATABASE_URL=postgresql://postgres:postgres@localhost:5432/attendance_db
-OPENAI_API_KEY=your_openai_api_key_here
+cp .env.example .env
+# Edit .env with your actual values
 ```
 
 3. Build and start the containers:
@@ -51,24 +206,59 @@ OPENAI_API_KEY=your_openai_api_key_here
 docker-compose up --build
 ```
 
-The application will be available at `http://localhost:8000`
+The application will be available at:
+- Backend API: `http://localhost:8000`
+- Frontend: `http://localhost:3000`
+- API Documentation: `http://localhost:8000/docs`
 
-## API Documentation
+## Docker Configuration
 
-Once the application is running, you can access:
-- Swagger UI: `http://localhost:8000/docs`
-- ReDoc: `http://localhost:8000/redoc`
+The application is fully dockerized with the following services:
 
-### Key Endpoints
+### API Service
+- Multi-stage build for smaller image size
+- Non-root user for improved security
+- Health checks for reliability
+- Environment variables from .env file
+- Volume mounts for development (hot reloading)
 
-- `GET /attendance/{employee_id}` - Get attendance records for an employee
-- `POST /attendance` - Create a new attendance record
-- `PUT /attendance/{attendance_id}` - Update an attendance record
-- `GET /attendance/team/{team_id}/trends` - Get attendance trends for a team
-- `GET /ai/insights` - Get AI-generated insights about attendance
-- `POST /admin/reset-database` - Reset the database (admin/dev only)
+### Frontend Service
+- Multi-stage build with optimized production image
+- Nginx for serving static files with proper caching
+- SPA routing configuration
+- Security headers
+- Health checks
+
+### Database Service
+- PostgreSQL with persistent volume
+- Health checks
+- Secured with username and password
+
+### Usage
+
+#### Production Deployment
+```bash
+# Start all services
+docker-compose up -d
+
+# Check service status
+docker-compose ps
+
+# View logs
+docker-compose logs -f
+
+# Stop all services
+docker-compose down
+```
+
+#### Development with Hot Reloading
+The Docker setup includes volume mounts for development that enable hot reloading of code changes:
+- Backend Python code changes are automatically detected
+- Frontend changes require rebuilding (not real-time hot reloading)
 
 ## Development Setup
+
+### Backend
 
 1. Create a virtual environment:
 ```bash
@@ -88,126 +278,75 @@ alembic upgrade head
 
 4. Run the application:
 ```bash
-# Basic run
 uvicorn app.main:app --reload
+```
 
-# Run with the helper script (supports database reset)
-python run_app.py
+### Frontend
 
-# Run with database reset and mock data
-python run_app.py --reset-db --with-mock-data
+1. Navigate to the frontend directory:
+```bash
+cd frontend
+```
+
+2. Install dependencies:
+```bash
+npm install
+# or
+bun install
+```
+
+3. Run the development server:
+```bash
+npm run dev
+# or
+bun run dev
 ```
 
 ## Testing
 
-### Run Tests
+### Backend Tests
 
-Using the test runner script (recommended):
 ```bash
-# Create test databases and run all tests
-python prepare_test_env.py --create-dbs --run-tests
-
-# Just create test databases
-python prepare_test_env.py --create-dbs
-
-# Run tests with the simplified test runner
-python run_tests.py
-```
-
-Run tests manually:
-```bash
+# Run all tests
 pytest app/tests/
+
+# Run with coverage
+pytest --cov=app app/tests/
 ```
 
 ### Load Testing
 
-Run load tests using Locust:
 ```bash
-locust -f locustfile.py --host=http://localhost:8000
+# Run Locust load tests
+locust -f attendance_locustfile.py --host=http://localhost:8000
 ```
-
-## Database Schema
-
-### Teams
-- `id`: Primary key
-- `name`: Team name
-
-### Employees
-- `id`: Primary key
-- `name`: Employee name
-- `email`: Unique email address
-- `team_id`: Foreign key to Teams
-- `role`: Enum (EMPLOYEE, MANAGER, HR, ADMIN)
-- `hire_date`: Date when employee was hired
-
-### Attendance
-- `id`: Primary key
-- `employee_id`: Foreign key to Employees
-- `date`: Date of attendance
-- `status`: Enum (PRESENT, ABSENT, HALF_DAY, WFH, LEAVE, HOLIDAY)
-- `check_in`: Check-in time (nullable)
-- `check_out`: Check-out time (nullable)
-- `notes`: Additional notes (nullable)
 
 ## Database Management
 
-### Setup and Migrations
+### Migrations
 
-Run database migrations:
 ```bash
+# Create a new migration
+alembic revision --autogenerate -m "Description of changes"
+
+# Apply migrations
 alembic upgrade head
+
+# Rollback one migration
+alembic downgrade -1
 ```
 
-### Reset Database (Development/Testing)
-
-The platform provides an endpoint to reset the database in development or testing environments:
+### Reset Database (Development Only)
 
 ```bash
-# Reset with no test data (asynchronous)
-curl -X POST "http://localhost:8000/admin/reset-database?api_key=dev_reset_key"
-
-# Reset with mock test data (asynchronous)
+# Reset with API call
 curl -X POST "http://localhost:8000/admin/reset-database?api_key=dev_reset_key&include_mock_data=true"
-
-# Synchronous reset (wait for completion)
-curl -X POST "http://localhost:8000/admin/reset-database?api_key=dev_reset_key&synchronous=true"
-
-# Synchronous reset with mock data
-curl -X POST "http://localhost:8000/admin/reset-database?api_key=dev_reset_key&synchronous=true&include_mock_data=true"
 ```
-
-You can also reset the database when starting the application:
-
-```bash
-# Start app with database reset
-python run_app.py --reset-db
-
-# Start app with database reset and mock data
-python run_app.py --reset-db --with-mock-data
-
-# Start app with synchronous database reset
-python run_app.py --reset-db --sync-reset
-```
-
-⚠️ **Warning**: This endpoint drops all tables and data. Use only in development/testing environments.
-
-The API key can be configured through the `ADMIN_API_KEY` environment variable. The default key is `dev_reset_key` and should be changed in production.
 
 ## Contributing
 
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+Please read [CONTRIBUTING.md](CONTRIBUTING.md) for details on our code of conduct and the process for submitting pull requests.
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## Acknowledgments
-
-- FastAPI team for the amazing framework
-- OpenAI for the GPT-4 API
-- SQLAlchemy team for the ORM
-- Docker team for containerization 
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details. 

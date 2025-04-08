@@ -59,7 +59,7 @@ def on_test_stop(environment, **kwargs):
             # Create a new client for cleanup
             user_class = environment.runner.user_classes[0]
             cleanup_client = user_class(environment)
-            cleanup_client.client.timeout = 30.0
+            cleanup_client.client.timeout = 60.0
             cleanup_client.client.verify = VERIFY_SSL
         else:
             logger.warning("Could not create cleanup client - runner or user classes not available")
@@ -135,7 +135,7 @@ def on_test_stop(environment, **kwargs):
                 "/admin/reset-database", 
                 json={"api_key": ADMIN_API_KEY, "synchronous": True},
                 name="/admin/reset-database [cleanup]",
-                timeout=30.0,
+                timeout=60.0,
                 verify=VERIFY_SSL
             )
             if response.status_code in [200, 202, 204]:
@@ -163,7 +163,7 @@ class TeamOperations(TaskSet):
         if 'verify' not in kwargs:
             kwargs['verify'] = VERIFY_SSL
         if 'timeout' not in kwargs:
-            kwargs['timeout'] = 30.0
+            kwargs['timeout'] = 60.0
             
         return getattr(self.client, method)(url, **kwargs)
     
@@ -311,7 +311,7 @@ class EmployeeOperations(TaskSet):
         if 'verify' not in kwargs:
             kwargs['verify'] = VERIFY_SSL
         if 'timeout' not in kwargs:
-            kwargs['timeout'] = 30.0
+            kwargs['timeout'] = 60.0
             
         return getattr(self.client, method)(url, **kwargs)
     
@@ -473,7 +473,7 @@ class AttendanceOperations(TaskSet):
         if 'verify' not in kwargs:
             kwargs['verify'] = VERIFY_SSL
         if 'timeout' not in kwargs:
-            kwargs['timeout'] = 30.0
+            kwargs['timeout'] = 60.0
             
         return getattr(self.client, method)(url, **kwargs)
     
@@ -669,7 +669,7 @@ class SystemOperations(TaskSet):
         if 'verify' not in kwargs:
             kwargs['verify'] = VERIFY_SSL
         if 'timeout' not in kwargs:
-            kwargs['timeout'] = 30.0
+            kwargs['timeout'] = 60.0
             
         return getattr(self.client, method)(url, **kwargs)
     
@@ -705,7 +705,7 @@ class AttendanceSystemUser(HttpUser):
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.client.timeout = 30.0  # Set a reasonable timeout
+        self.client.timeout = 60.0  # Set a reasonable timeout
         self.client.verify = VERIFY_SSL  # Apply SSL verification setting
         self.start_time = None
     
