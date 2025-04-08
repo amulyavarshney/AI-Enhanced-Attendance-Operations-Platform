@@ -31,7 +31,7 @@ export const employeeApi = {
     return response.data;
   },
   
-  getEmployeeById: async (id: string): Promise<Employee> => {
+  getEmployeeById: async (id: number): Promise<Employee> => {
     const response = await apiClient.get<Employee>(`/employees/${id}`);
     return response.data;
   },
@@ -41,17 +41,17 @@ export const employeeApi = {
     return response.data;
   },
   
-  updateEmployee: async (id: string, employee: Partial<Omit<Employee, 'id' | 'createdAt' | 'updatedAt'>>): Promise<Employee> => {
+  updateEmployee: async (id: number, employee: Partial<Omit<Employee, 'id' | 'createdAt' | 'updatedAt'>>): Promise<Employee> => {
     const response = await apiClient.put<Employee>(`/employees/${id}`, employee);
     return response.data;
   },
   
-  deleteEmployee: async (id: string): Promise<{ message: string }> => {
+  deleteEmployee: async (id: number): Promise<{ message: string }> => {
     const response = await apiClient.delete<{ message: string }>(`/employees/${id}`);
     return response.data;
   },
 
-  getAttendanceByEmployeeId: async (employeeId: string, startDate?: string, endDate?: string): Promise<Attendance[]> => {
+  getAttendanceByEmployeeId: async (employeeId: number, startDate?: string, endDate?: string): Promise<Attendance[]> => {
     const params = { start_date: startDate, end_date: endDate };
     const endpoint = `/employees/${employeeId}/attendance` + buildQueryParams(params);
     const response = await apiClient.get<Attendance[]>(endpoint);
@@ -66,7 +66,7 @@ export const teamApi = {
     return response.data;
   },
   
-  getTeamById: async (id: string): Promise<Team> => {
+  getTeamById: async (id: number): Promise<Team> => {
     const response = await apiClient.get<Team>(`/teams/${id}`);
     return response.data;
   },
@@ -76,29 +76,29 @@ export const teamApi = {
     return response.data;
   },
   
-  updateTeam: async (id: string, team: Partial<Omit<Team, 'id' | 'createdAt' | 'updatedAt'>>): Promise<Team> => {
+  updateTeam: async (id: number, team: Partial<Omit<Team, 'id' | 'createdAt' | 'updatedAt'>>): Promise<Team> => {
     const response = await apiClient.put<Team>(`/teams/${id}`, team);
     return response.data;
   },
   
-  deleteTeam: async (id: string): Promise<{ message: string }> => {
+  deleteTeam: async (id: number): Promise<{ message: string }> => {
     const response = await apiClient.delete<{ message: string }>(`/teams/${id}`);
     return response.data;
   },
 
-  getEmployeesByTeamId: async (teamId: string): Promise<Employee[]> => {
+  getEmployeesByTeamId: async (teamId: number): Promise<Employee[]> => {
     const response = await apiClient.get<Employee[]>(`/teams/${teamId}/employees`);
     return response.data;
   },
 
-  getAttendanceByTeamId: async (teamId: string, startDate?: string, endDate?: string): Promise<Attendance[]> => {
+  getAttendanceByTeamId: async (teamId: number, startDate?: string, endDate?: string): Promise<Attendance[]> => {
     const params = { start_date: startDate, end_date: endDate };
     const endpoint = `/teams/${teamId}/attendance` + buildQueryParams(params);
     const response = await apiClient.get<Attendance[]>(endpoint);
     return response.data;
   },
 
-  getAttendenceTrendsByTeamId: async (teamId: string, startDate?: string, endDate?: string): Promise<TeamTrends[]> => {
+  getAttendenceTrendsByTeamId: async (teamId: number, startDate?: string, endDate?: string): Promise<TeamTrends[]> => {
     const params = { start_date: startDate, end_date: endDate };
     const endpoint = `/teams/${teamId}/attendance/trends` + buildQueryParams(params);
     const response = await apiClient.get<TeamTrends[]>(endpoint);
@@ -115,7 +115,7 @@ export const attendanceApi = {
     return response.data;
   },
   
-  getAttendanceById: async (id: string): Promise<Attendance> => {
+  getAttendanceById: async (id: number): Promise<Attendance> => {
     const response = await apiClient.get<Attendance>(`/attendance/${id}`);
     return response.data;
   },
@@ -125,7 +125,7 @@ export const attendanceApi = {
     return response.data;
   },
   
-  updateAttendance: async (id: string, attendance: Partial<Omit<Attendance, 'id' | 'createdAt' | 'updatedAt'>>): Promise<Attendance> => {
+  updateAttendance: async (id: number, attendance: Partial<Omit<Attendance, 'id' | 'createdAt' | 'updatedAt'>>): Promise<Attendance> => {
     const response = await apiClient.put<Attendance>(`/attendance/${id}`, attendance);
     return response.data;
   },

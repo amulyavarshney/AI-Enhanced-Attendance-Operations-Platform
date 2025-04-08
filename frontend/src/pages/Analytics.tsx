@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import { BarChart3, CalendarRange, PieChart, TrendingUp, Users } from "lucide-react";
 import {
@@ -13,6 +12,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Attendance, Team, TeamTrends } from "@/types/models";
 import { fetchAttendance, fetchTeams, fetchTeamTrends } from "@/services/mockData";
 import { formatDate } from "@/utils/formatters";
+import { DateRangePicker } from "@/components/ui/date-range-picker";
+import { Button } from "@/components/ui/button";
+import { DateRange } from "react-day-picker";
 
 import {
   AreaChart,
@@ -40,17 +42,91 @@ const Analytics: React.FC = () => {
   const [selectedTeam, setSelectedTeam] = useState<string>("all");
   const [selectedPeriod, setSelectedPeriod] = useState<string>("7days");
   
+  // Add state for date range
+  const [startDate, setStartDate] = useState<Date>(() => {
+    const date = new Date();
+    date.setDate(date.getDate() - 7); // Default to 7 days ago
+    return date;
+  });
+  const [endDate, setEndDate] = useState<Date>(new Date()); // Default to today
+  
+  // Date range state for the picker
+  const [dateRange, setDateRange] = useState<DateRange | undefined>({
+    from: startDate,
+    to: endDate
+  });
+  
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
       try {
-        const [teamsData, attendanceData, teamTrendsData] = await Promise.all([
+        const [teamsData] = await Promise.all([
           fetchTeams(),
-          fetchAttendance(),
-          fetchTeamTrends()
         ]);
         
         setTeams(teamsData);
+      } catch (error) {
+        console.error("Error fetching teams data:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchData();
+  }, []);
+
+  // Update dates whenever period changes
+  useEffect(() => {
+    const today = new Date();
+    let newStartDate = new Date();
+    
+    if (selectedPeriod !== "custom") {
+      switch (selectedPeriod) {
+        case "7days":
+          newStartDate.setDate(today.getDate() - 7);
+          break;
+        case "30days":
+          newStartDate.setDate(today.getDate() - 30);
+          break;
+        case "90days":
+          newStartDate.setDate(today.getDate() - 90);
+          break;
+        default:
+          newStartDate.setDate(today.getDate() - 7);
+      }
+      setStartDate(newStartDate);
+      setEndDate(today);
+      
+      // Update the date range picker
+      setDateRange({
+        from: newStartDate,
+        to: today
+      });
+    }
+  }, [selectedPeriod]);
+  
+  // Update startDate and endDate when dateRange changes
+  useEffect(() => {
+    if (dateRange?.from) {
+      setStartDate(dateRange.from);
+    }
+    if (dateRange?.to) {
+      setEndDate(dateRange.to);
+    }
+  }, [dateRange]);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        const startDateStr = startDate.toISOString().split('T')[0];
+        const endDateStr = endDate.toISOString().split('T')[0];
+        
+        const [attendanceData, teamTrendsData] = await Promise.all([
+          fetchAttendance(startDateStr, endDateStr),
+          fetchTeamTrends(undefined, startDateStr, endDateStr)
+        ]);
+        
         setAttendance(attendanceData);
         setTeamTrends(teamTrendsData);
       } catch (error) {
@@ -61,7 +137,7 @@ const Analytics: React.FC = () => {
     };
     
     fetchData();
-  }, []);
+  }, [startDate, endDate]);
   
   // Filter data based on selections
   const filterDataByTeam = (data: any[]) => {
@@ -71,35 +147,25 @@ const Analytics: React.FC = () => {
   
   // Filter data based on selected period
   const filterDataByPeriod = (data: any[]) => {
-    const today = new Date();
-    let startDate = new Date();
-    
-    switch (selectedPeriod) {
-      case "7days":
-        startDate.setDate(today.getDate() - 7);
-        break;
-      case "30days":
-        startDate.setDate(today.getDate() - 30);
-        break;
-      case "90days":
-        startDate.setDate(today.getDate() - 90);
-        break;
-      default:
-        startDate.setDate(today.getDate() - 7);
-    }
-    
     const startDateString = startDate.toISOString().split('T')[0];
+    const endDateString = endDate.toISOString().split('T')[0];
     
     return data.filter(item => {
       const itemDate = item.date ? item.date.split('T')[0] : "";
-      return itemDate >= startDateString;
+      return itemDate >= startDateString && itemDate <= endDateString;
     });
+  };
+  
+  // Handle custom date range changes
+  const applyCustomDateRange = () => {
+    // This will trigger the useEffect hook to fetch new data
+    setSelectedPeriod("custom");
   };
   
   // Prepare data for attendance status pie chart
   const getAttendanceStatusData = () => {
     const filteredAttendance = filterDataByPeriod(
-      filterDataByTeam(attendance)
+      attendance
     );
     
     const statusCounts: Record<string, number> = {
@@ -222,20 +288,6 @@ const Analytics: React.FC = () => {
         <h1 className="text-3xl font-bold tracking-tight">Analytics</h1>
         
         <div className="flex space-x-2">
-          <Select value={selectedTeam} onValueChange={setSelectedTeam}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Select team" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Teams</SelectItem>
-              {teams.map(team => (
-                <SelectItem key={team.id} value={team.id.toString()}>
-                  {team.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          
           <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
             <SelectTrigger className="w-[180px]">
               <SelectValue placeholder="Select period" />
@@ -244,8 +296,22 @@ const Analytics: React.FC = () => {
               <SelectItem value="7days">Last 7 Days</SelectItem>
               <SelectItem value="30days">Last 30 Days</SelectItem>
               <SelectItem value="90days">Last 90 Days</SelectItem>
+              <SelectItem value="custom">Custom Range</SelectItem>
             </SelectContent>
           </Select>
+           
+          {selectedPeriod === "custom" && (
+            <div className="flex items-center space-x-2">
+              <DateRangePicker 
+                dateRange={dateRange}
+                onDateRangeChange={setDateRange}
+                className="w-[300px]"
+              />
+              <Button onClick={applyCustomDateRange} variant="outline" size="sm">
+                Apply
+              </Button>
+            </div>
+          )}
         </div>
       </div>
       
@@ -305,11 +371,26 @@ const Analytics: React.FC = () => {
         
         <TabsContent value="trends" className="mt-6">
           <Card>
-            <CardHeader>
-              <CardTitle>Attendance Trends Over Time</CardTitle>
-              <CardDescription>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle>Attendance Trends Over Time</CardTitle>
+                <CardDescription>
                 View how attendance patterns change over the selected period
-              </CardDescription>
+                </CardDescription>
+              </div>
+              <Select value={selectedTeam} onValueChange={setSelectedTeam}>
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Select team" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Teams</SelectItem>
+                  {teams.map(team => (
+                    <SelectItem key={team.id} value={team.id.toString()}>
+                      {team.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </CardHeader>
             <CardContent>
               <div className="h-[400px]">

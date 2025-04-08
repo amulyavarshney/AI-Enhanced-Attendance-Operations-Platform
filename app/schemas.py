@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from datetime import datetime, date
+from datetime import datetime, date as date_type
 from typing import Optional, List, Dict, Any
 from .models import AttendanceType, Role
 
@@ -29,7 +29,7 @@ class EmployeeBase(BaseModel):
     team_id: int
 
 class EmployeeCreate(EmployeeBase):
-    hire_date: date = date.today()
+    hire_date: date_type = date_type.today()
 
 class EmployeeUpdate(EmployeeBase):
     pass
@@ -50,7 +50,7 @@ class AttendanceBase(BaseModel):
     notes: Optional[str] = None
 
 class AttendanceCreate(AttendanceBase):
-    pass
+    date: date_type = date_type.today()
 
 class AttendanceUpdate(BaseModel):
     status: Optional[AttendanceType] = None
@@ -60,7 +60,7 @@ class AttendanceUpdate(BaseModel):
 
 class Attendance(AttendanceBase):
     id: int
-    date: date
+    date: date_type
     created_at: datetime
     updated_at: datetime
 
@@ -70,7 +70,7 @@ class Attendance(AttendanceBase):
 class TeamTrends(BaseModel):
     team_id: int
     total_employees: int
-    date: date
+    date: date_type
     present_count: int
     absent_count: int
     wfh_count: int
