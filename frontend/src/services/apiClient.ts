@@ -1,4 +1,3 @@
-
 import axios from 'axios';
 import { 
   Employee, 
@@ -10,11 +9,20 @@ import {
 
 // Configure axios instance
 const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_API_URL,
+  baseURL: import.meta.env.VITE_DEV_API_URL,
   headers: {
     'Content-Type': 'application/json',
   },
 });
+
+const buildQueryParams = (params: Record<string, number | string | undefined>): string => {
+  const validParams = Object.entries(params)
+    .filter(([_, value]) => value !== undefined)
+    .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(String(value))}`)
+    .join('&');
+  
+  return validParams ? `?${validParams}` : '';
+};
 
 // Employee API
 export const employeeApi = {
@@ -28,12 +36,12 @@ export const employeeApi = {
     return response.data;
   },
   
-  createEmployee: async (employee: Omit<Employee, 'id'>): Promise<Employee> => {
+  createEmployee: async (employee: Omit<Employee, 'id' | 'createdAt' | 'updatedAt'>): Promise<Employee> => {
     const response = await apiClient.post<Employee>('/employees', employee);
     return response.data;
   },
   
-  updateEmployee: async (id: string, employee: Partial<Employee>): Promise<Employee> => {
+  updateEmployee: async (id: string, employee: Partial<Omit<Employee, 'id' | 'createdAt' | 'updatedAt'>>): Promise<Employee> => {
     const response = await apiClient.put<Employee>(`/employees/${id}`, employee);
     return response.data;
   },
@@ -44,9 +52,9 @@ export const employeeApi = {
   },
 
   getAttendanceByEmployeeId: async (employeeId: string, startDate?: string, endDate?: string): Promise<Attendance[]> => {
-    const response = await apiClient.get<Attendance[]>(`/employees/${employeeId}/attendance`, {
-      params: { startDate, endDate }
-    });
+    const params = { start_date: startDate, end_date: endDate };
+    const endpoint = `/employees/${employeeId}/attendance` + buildQueryParams(params);
+    const response = await apiClient.get<Attendance[]>(endpoint);
     return response.data;
   }
 };
@@ -68,7 +76,7 @@ export const teamApi = {
     return response.data;
   },
   
-  updateTeam: async (id: string, team: Partial<Team>): Promise<Team> => {
+  updateTeam: async (id: string, team: Partial<Omit<Team, 'id' | 'createdAt' | 'updatedAt'>>): Promise<Team> => {
     const response = await apiClient.put<Team>(`/teams/${id}`, team);
     return response.data;
   },
@@ -78,47 +86,46 @@ export const teamApi = {
     return response.data;
   },
 
-  getEmployeeByTeamId: async (teamId: string): Promise<Employee[]> => {
+  getEmployeesByTeamId: async (teamId: string): Promise<Employee[]> => {
     const response = await apiClient.get<Employee[]>(`/teams/${teamId}/employees`);
     return response.data;
   },
 
   getAttendanceByTeamId: async (teamId: string, startDate?: string, endDate?: string): Promise<Attendance[]> => {
-    const response = await apiClient.get<Attendance[]>(`/teams/${teamId}/attendance`, {
-      params: { startDate, endDate }
-    });
+    const params = { start_date: startDate, end_date: endDate };
+    const endpoint = `/teams/${teamId}/attendance` + buildQueryParams(params);
+    const response = await apiClient.get<Attendance[]>(endpoint);
     return response.data;
   },
 
   getAttendenceTrendsByTeamId: async (teamId: string, startDate?: string, endDate?: string): Promise<TeamTrends[]> => {
-    const response = await apiClient.get<TeamTrends[]>(`/teams/${teamId}/attendance/trends`, {
-      params: { startDate, endDate }
-    });
+    const params = { start_date: startDate, end_date: endDate };
+    const endpoint = `/teams/${teamId}/attendance/trends` + buildQueryParams(params);
+    const response = await apiClient.get<TeamTrends[]>(endpoint);
     return response.data;
   },
 };
 
 // Attendance API
 export const attendanceApi = {
-  getAttendance: async (date?: string): Promise<Attendance[]> => {
-    const url = date ? `/attendance?date=${date}` : '/attendance';
-    const response = await apiClient.get<Attendance[]>(url);
+  getAttendance: async (startDate?: string, endDate?: string): Promise<Attendance[]> => {
+    const params = { start_date: startDate, end_date: endDate };
+    const endpoint = '/attendance' + buildQueryParams(params);
+    const response = await apiClient.get<Attendance[]>(endpoint);
     return response.data;
   },
   
-  getAttendanceById: async (id: string, startDate?: string, endDate?: string): Promise<Attendance> => {
-    const response = await apiClient.get<Attendance>(`/attendance/${id}`, {
-      params: { startDate, endDate }
-    });
+  getAttendanceById: async (id: string): Promise<Attendance> => {
+    const response = await apiClient.get<Attendance>(`/attendance/${id}`);
     return response.data;
   },
   
-  createAttendance: async (attendance: Omit<Attendance, 'id'>): Promise<Attendance> => {
+  createAttendance: async (attendance: Omit<Attendance, 'id' | 'createdAt' | 'updatedAt'>): Promise<Attendance> => {
     const response = await apiClient.post<Attendance>('/attendance', attendance);
     return response.data;
   },
   
-  updateAttendance: async (id: string, attendance: Partial<Attendance>): Promise<Attendance> => {
+  updateAttendance: async (id: string, attendance: Partial<Omit<Attendance, 'id' | 'createdAt' | 'updatedAt'>>): Promise<Attendance> => {
     const response = await apiClient.put<Attendance>(`/attendance/${id}`, attendance);
     return response.data;
   },
@@ -126,17 +133,17 @@ export const attendanceApi = {
 
 // AI Insights API
 export const insightApi = {
-  getAIInsights: async (limit: number = 10): Promise<AIInsight[]> => {
-    const response = await apiClient.get<AIInsight[]>(`/ai/insights/history`, {
-      params: { limit }
-    });
+  getInsight: async (query: string): Promise<AIInsight> => {
+    const params = { query: query };
+    const endpoint = `/ai/insights` + buildQueryParams(params);
+    const response = await apiClient.get<AIInsight>(endpoint);
     return response.data;
   },
-  
-  getInsight: async (query: string): Promise<AIInsight> => {
-    const response = await apiClient.get<AIInsight>(`/ai/insights`, {
-      params: { query }
-    });
+
+  getAIInsights: async (limit: number = 10): Promise<AIInsight[]> => {
+    const params = { limit: limit };
+    const endpoint = `/ai/insights/history` + buildQueryParams(params);
+    const response = await apiClient.get<AIInsight[]>(endpoint);
     return response.data;
   },
 };

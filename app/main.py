@@ -492,7 +492,7 @@ async def create_attendance(
         logger.error(f"Error creating attendance: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
-@app.get("/attendance/",
+@app.get("/attendance",
          response_model=List[schemas.Attendance],
          tags=["Attendance"],
          summary="Get All Attendance Records",
@@ -528,8 +528,6 @@ async def get_all_attendance(
          description="Get an attendance record by ID.")
 async def get_attendance(
     attendance_id: int,
-    start_date: Optional[date] = Query(None, description="Start date for filtering attendance records, format: YYYY-MM-DD"),
-    end_date: Optional[date] = Query(None, description="End date for filtering attendance records, format: YYYY-MM-DD"),
     db: Session = Depends(get_db)
 ):
     """
@@ -537,8 +535,6 @@ async def get_attendance(
 
     Parameters:
     - **attendance_id**: The ID of the attendance record to get
-    - **start_date**: Start date (optional)
-    - **end_date**: End date (optional)
     
     Returns:
     - Attendance record details
@@ -548,7 +544,7 @@ async def get_attendance(
     - 500: For server errors
     """
     try:
-        return crud.get_attendance_by_id(db, attendance_id, start_date, end_date)
+        return crud.get_attendance_by_id(db, attendance_id)
     except Exception as e:
         logger.error(f"Error fetching attendance: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")

@@ -261,13 +261,9 @@ def get_attendance_by_date(db: Session, start_date: Optional[date] = None, end_d
         query = query.filter(models.Attendance.date <= end_date)
     return query.all()
 
-def get_attendance_by_id(db: Session, attendance_id: int, start_date: Optional[date] = None, end_date: Optional[date] = None) -> List[models.Attendance]:
+def get_attendance_by_id(db: Session, attendance_id: int) -> List[models.Attendance]:
     """Get attendance records by attendance ID"""
     query = db.query(models.Attendance).filter(models.Attendance.id == attendance_id)
-    if start_date:
-        query = query.filter(models.Attendance.date >= start_date)
-    if end_date:
-        query = query.filter(models.Attendance.date <= end_date)
     return query.first()
 
 def update_attendance(db: Session, attendance_id: int, attendance: schemas.AttendanceUpdate) -> models.Attendance:
