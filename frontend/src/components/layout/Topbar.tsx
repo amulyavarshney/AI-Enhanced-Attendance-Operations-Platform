@@ -122,8 +122,8 @@ const Topbar: React.FC = () => {
       <div className="flex items-center space-x-4 w-full">
         <div className="flex items-center space-x-2 bg-muted/50 p-2 rounded-lg">
           <div className="flex flex-col">
-            <span className="text-xs text-muted-foreground">AI Insight</span>
-            <span className="text-sm font-medium">Team Performance</span>
+            <span className="text-xs text-muted-foreground">Attendance Insights</span>
+            {/* <span className="text-sm font-medium">Team Performance</span> */}
           </div>
           <div className="h-8 w-px bg-border mx-2" />
           <div className="flex items-center space-x-2">

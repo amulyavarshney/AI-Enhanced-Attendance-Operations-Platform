@@ -492,7 +492,7 @@ const AIInsightsPage: React.FC = () => {
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 space-y-6">
-              <Card>
+              {/* <Card>
                 <CardHeader>
                   <CardTitle>Featured Insights</CardTitle>
                   <CardDescription>
@@ -584,7 +584,7 @@ const AIInsightsPage: React.FC = () => {
                     </div>
                   )}
                 </CardContent>
-              </Card>
+              </Card> */}
 
               <Card>
                 <CardHeader>
@@ -716,7 +716,14 @@ const AIInsightsPage: React.FC = () => {
                         key={i}
                         variant="outline"
                         className="w-full justify-start text-left h-auto py-2"
-                        onClick={() => setQuery(q)}
+                        onClick={() => {
+                          setQuery(q)
+                          toast({
+                            title: "Added to the query",
+                            description: "Go to the chat tab to see the results",
+                            variant: "default",
+                          });
+                        }}
                       >
                         <MessageSquare className="mr-2 h-4 w-4 shrink-0" />
                         <span className="truncate">{q}</span>
@@ -726,7 +733,7 @@ const AIInsightsPage: React.FC = () => {
                 </CardContent>
               </Card>
 
-              <Card>
+              {/* <Card>
                 <CardHeader>
                   <CardTitle>Top Trends</CardTitle>
                   <CardDescription>Current attendance patterns</CardDescription>
@@ -764,7 +771,7 @@ const AIInsightsPage: React.FC = () => {
                     <Progress value={86} className="h-2" />
                   </div>
                 </CardContent>
-              </Card>
+              </Card> */}
             </div>
           </div>
         </TabsContent>

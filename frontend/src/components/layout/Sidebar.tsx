@@ -29,7 +29,7 @@ const Sidebar: React.FC = () => {
     >
       <div className="flex items-center justify-between p-4 border-b border-primary-foreground/10">
         {!collapsed && (
-          <h1 className="font-bold text-xl">AttendaAI</h1>
+          <h1 className="font-bold text-xl">Attendance AI</h1>
         )}
         <Button 
           variant="ghost" 
@@ -91,7 +91,8 @@ const Sidebar: React.FC = () => {
       <div className="p-4 border-t border-primary-foreground/10">
         {!collapsed && (
           <div className="text-xs text-primary-foreground/70">
-            AttendaAI © 2025
+            <p>Attendance AI © 2025</p>
+            <p>Developed by <a href="https://github.com/amulyavarshney" target="_blank" rel="noopener noreferrer">Amulya Varshney</a></p>
           </div>
         )}
       </div>
