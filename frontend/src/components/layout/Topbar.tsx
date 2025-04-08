@@ -16,12 +16,21 @@ const Topbar: React.FC = () => {
   return (
     <header className="bg-background border-b border-border h-16 flex items-center justify-between px-6 py-2">
       <div className="flex items-center w-1/3">
-        <div className="relative w-full max-w-md">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search..."
-            className="w-full pl-9 bg-background"
-          />
+        <div className="flex items-center space-x-2 bg-muted/50 p-2 rounded-lg">
+          <div className="flex flex-col">
+            <span className="text-xs text-muted-foreground">AI Insight</span>
+            <span className="text-sm font-medium">Team Performance</span>
+          </div>
+          <div className="h-8 w-px bg-border mx-2" />
+          <div className="flex items-center space-x-2">
+            <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
+            <span className="text-sm">Active Teams: 8</span>
+          </div>
+          <div className="h-8 w-px bg-border mx-2" />
+          <div className="flex items-center space-x-2">
+            <div className="h-2 w-2 rounded-full bg-blue-500 animate-pulse" />
+            <span className="text-sm">Avg. Attendance: 92%</span>
+          </div>
         </div>
       </div>
       

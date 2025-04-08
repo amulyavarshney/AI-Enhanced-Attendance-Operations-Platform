@@ -40,7 +40,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Attendance, AttendanceType, Employee, Team } from "@/types";
+import { Attendance, AttendanceType, Employee, Team } from "@/types/models";
 import { fetchAttendance, fetchEmployees, fetchTeams } from "@/services/mockData";
 import {
   formatAttendanceStatus,

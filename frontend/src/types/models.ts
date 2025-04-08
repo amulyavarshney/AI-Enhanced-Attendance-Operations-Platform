@@ -1,4 +1,3 @@
-
 export enum AttendanceType {
   PRESENT = "present",
   ABSENT = "absent",
@@ -15,48 +14,48 @@ export enum Role {
 
 export interface Employee {
   id: number;
-  firstName: string;
-  lastName: string;
+  first_name: string;
+  last_name: string;
   email: string;
   phone?: string;
   role: Role;
-  teamId: number;
-  hireDate: string;
-  createdAt: string;
-  updatedAt: string;
+  team_id: number;
+  hire_date: string;
+  created_at: string;
+  updated_at: string;
   team?: Team;
 }
 
 export interface Team {
   id: number;
   name: string;
-  createdAt: string;
-  updatedAt: string;
+  created_at: string;
+  updated_at: string;
   employees?: Employee[];
 }
 
 export interface Attendance {
   id: number;
-  employeeId: number;
+  employee_id: number;
   date: string;
   status: AttendanceType;
-  checkIn?: string;
-  checkOut?: string;
+  check_in?: string;
+  check_out?: string;
   notes?: string;
-  createdAt: string;
-  updatedAt: string;
+  created_at: string;
+  updated_at: string;
   employee?: Employee;
 }
 
 export interface TeamTrends {
-  teamId: number;
+  team_id: number;
   date: string;
-  totalEmployees: number;
-  presentCount: number;
-  absentCount: number;
-  wfhCount: number;
-  halfDayCount: number;
-  leaveCount: number;
+  total_employees: number;
+  present_count: number;
+  absent_count: number;
+  wfh_count: number;
+  half_day_count: number;
+  leave_count: number;
   team?: Team;
 }
 
@@ -65,24 +64,24 @@ export interface AIInsight {
   query: string;
   summary: string;
   details: Record<string, any>;
-  generatedAt: string;
+  generated_at: string;
 }
 
 export interface EmployeeFormData {
-  firstName: string;
-  lastName: string;
+  first_name: string;
+  last_name: string;
   email: string;
   phone?: string;
   role: Role;
-  teamId: number;
-  hireDate: string;
+  team_id: number;
+  hire_date: string;
 }
 
 export interface AttendanceFormData {
-  employeeId: number;
+  employee_id: number;
   status: AttendanceType;
-  checkIn?: string;
-  checkOut?: string;
+  check_in?: string;
+  check_out?: string;
   notes?: string;
 }
 

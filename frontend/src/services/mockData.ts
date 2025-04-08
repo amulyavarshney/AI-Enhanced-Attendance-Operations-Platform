@@ -1,5 +1,5 @@
 
-import { Employee, Team, Attendance, TeamTrends, AIInsight, Role, AttendanceType } from "@/types";
+import { Employee, Team, Attendance, TeamTrends, AIInsight, Role, AttendanceType } from "@/types/models";
 
 // Generate teams
 export const teams: Team[] = [

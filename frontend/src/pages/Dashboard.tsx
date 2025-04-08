@@ -11,7 +11,7 @@ import {
   fetchTeamTrends 
 } from "@/services/mockData";
 import { formatDate } from "@/utils/formatters";
-import { Employee, Attendance, Team, TeamTrends, AttendanceType } from "@/types";
+import { Employee, Attendance, Team, TeamTrends, AttendanceType } from "@/types/models";
 
 import {
   AreaChart,

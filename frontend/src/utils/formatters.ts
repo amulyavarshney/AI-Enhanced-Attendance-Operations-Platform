@@ -1,5 +1,4 @@
-
-import { AttendanceType, Role } from "@/types";
+import { AttendanceType, Role } from "@/types/models";
 
 export const formatDate = (dateString: string): string => {
   const date = new Date(dateString);
@@ -80,6 +79,6 @@ export const getAttendanceStatusClass = (status: AttendanceType): string => {
   }
 };
 
-export const getInitials = (firstName: string, lastName: string): string => {
-  return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
+export const getInitials = (first_name: string, last_name: string): string => {
+  return `${first_name.charAt(0)}${last_name.charAt(0)}`.toUpperCase();
 };

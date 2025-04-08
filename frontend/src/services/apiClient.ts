@@ -5,16 +5,12 @@ import {
   Team, 
   Attendance, 
   AIInsight, 
-  TeamTrend,
-  DashboardStats, 
-  ChartData,
-  Notification,
-  AuditLog
+  TeamTrends,
 } from '@/types/models';
 
 // Configure axios instance
 const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8000',
+  baseURL: import.meta.env.VITE_API_URL,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -94,8 +90,8 @@ export const teamApi = {
     return response.data;
   },
 
-  getAttendenceTrendsByTeamId: async (teamId: string, startDate?: string, endDate?: string): Promise<TeamTrend[]> => {
-    const response = await apiClient.get<TeamTrend[]>(`/teams/${teamId}/attendance/trends`, {
+  getAttendenceTrendsByTeamId: async (teamId: string, startDate?: string, endDate?: string): Promise<TeamTrends[]> => {
+    const response = await apiClient.get<TeamTrends[]>(`/teams/${teamId}/attendance/trends`, {
       params: { startDate, endDate }
     });
     return response.data;

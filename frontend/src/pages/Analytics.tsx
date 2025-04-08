@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Attendance, Team, TeamTrends } from "@/types";
+import { Attendance, Team, TeamTrends } from "@/types/models";
 import { fetchAttendance, fetchTeams, fetchTeamTrends } from "@/services/mockData";
 import { formatDate } from "@/utils/formatters";
 
