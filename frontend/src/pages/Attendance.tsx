@@ -39,17 +39,27 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Attendance, AttendanceType, Employee, Team, AttendanceFormData } from "@/types/models";
+import {
+  Attendance,
+  AttendanceType,
+  Employee,
+  Team,
+  AttendanceFormData,
+} from "@/types/models";
 import { attendanceApi, employeeApi, teamApi } from "@/services/apiClient";
 import {
   formatAttendanceStatus,
   formatTime,
-  getAttendanceStatusClass
+  getAttendanceStatusClass,
 } from "@/utils/formatters";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -69,14 +79,16 @@ const AttendancePage: React.FC = () => {
   const [attendance, setAttendance] = useState<Attendance[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
-  
+
   // UI states
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [updatingRecords, setUpdatingRecords] = useState<Record<number, boolean>>({});
+  const [updatingRecords, setUpdatingRecords] = useState<
+    Record<number, boolean>
+  >({});
   const [isEditing, setIsEditing] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
-  
+
   // Filter states
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -91,10 +103,10 @@ const AttendancePage: React.FC = () => {
       status: AttendanceType.PRESENT,
       checkIn: "",
       checkOut: "",
-      notes: ""
-    }
+      notes: "",
+    },
   });
-  
+
   // Reset form to default values
   const resetForm = useCallback(() => {
     form.reset({
@@ -103,133 +115,141 @@ const AttendancePage: React.FC = () => {
       status: AttendanceType.PRESENT,
       checkIn: "",
       checkOut: "",
-      notes: ""
+      notes: "",
     });
     setIsEditing(false);
     setEditingId(null);
   }, [form]);
-  
+
   // Open dialog for editing a record
-  const openEditDialog = useCallback((record: Attendance) => {
-    const employee = employees.find(e => e.id === record.employee_id);
-    if (!employee) return;
-    
-    const recordDate = record.date ? new Date(record.date) : new Date();
-    
-    form.reset({
-      employeeId: employee.id.toString(),
-      date: recordDate,
-      status: record.status,
-      checkIn: record.check_in || "",
-      checkOut: record.check_out || "",
-      notes: record.notes || ""
-    });
-    
-    setIsEditing(true);
-    setEditingId(record.id);
-    setDialogOpen(true);
-  }, [employees, form]);
-  
+  const openEditDialog = useCallback(
+    (record: Attendance) => {
+      const employee = employees.find((e) => e.id === record.employee_id);
+      if (!employee) return;
+
+      const recordDate = record.date ? new Date(record.date) : new Date();
+
+      form.reset({
+        employeeId: employee.id.toString(),
+        date: recordDate,
+        status: record.status,
+        checkIn: record.check_in || "",
+        checkOut: record.check_out || "",
+        notes: record.notes || "",
+      });
+
+      setIsEditing(true);
+      setEditingId(record.id);
+      setDialogOpen(true);
+    },
+    [employees, form]
+  );
+
   // Handle save attendance
-  const handleSaveAttendance = useCallback(async (data: AttendanceFormValues) => {
-    if (!data.employeeId) {
-      alert("Please select an employee");
-      return;
-    }
-    
-    try {
-      // Format the data for API
-      const formattedDate = format(data.date, 'yyyy-MM-dd');
-      
-      // Convert time strings to ISO format if they exist
-      const formatTimeToISO = (timeString: string | undefined) => {
-        if (!timeString) return undefined;
-        
-        // Create a date object with today's date and the time from the input
-        const [hours, minutes] = timeString.split(':').map(Number);
-        const dateObj = new Date();
-        dateObj.setHours(hours, minutes, 0, 0);
-        return dateObj.toISOString();
-      };
-      
-      const attendanceData: Partial<Attendance> = {
-        employee_id: parseInt(data.employeeId),
-        status: data.status,
-        check_in: data.checkIn ? formatTimeToISO(data.checkIn) : undefined,
-        check_out: data.checkOut ? formatTimeToISO(data.checkOut) : undefined,
-        notes: data.notes || undefined,
-        date: formattedDate
-      };
-      
-      let updatedRecord: Attendance;
-      
-      if (isEditing && editingId) {
-        // Update existing record
-        updatedRecord = await attendanceApi.updateAttendance(editingId, attendanceData);
-        
-        // Update local state
-        setAttendance(prev => prev.map(record => 
-          record.id === editingId ? updatedRecord : record
-        ));
-      } else {
-        // Create new record - include all required fields for a new record
-        const newAttendanceData = {
-          ...attendanceData,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        };
-        
-        updatedRecord = await attendanceApi.createAttendance(newAttendanceData as Omit<Attendance, 'id' | 'createdAt' | 'updatedAt'>);
-        
-        // Add to the local state if it's the selected date
-        if (formattedDate === format(selectedDate, 'yyyy-MM-dd')) {
-          setAttendance(prev => [...prev, updatedRecord]);
-        }
+  const handleSaveAttendance = useCallback(
+    async (data: AttendanceFormValues) => {
+      if (!data.employeeId) {
+        alert("Please select an employee");
+        return;
       }
-      
-      // Close dialog and reset form
-      setDialogOpen(false);
-      resetForm();
-      
-    } catch (error) {
-      console.error("Error saving attendance:", error);
-      alert("Failed to save attendance");
-    }
-  }, [isEditing, editingId, selectedDate, resetForm]);
-  
+
+      try {
+        // Format the data for API
+        const formattedDate = format(data.date, "yyyy-MM-dd");
+
+        // Convert time strings to ISO format if they exist
+        const formatTimeToISO = (timeString: string | undefined) => {
+          if (!timeString) return undefined;
+
+          // Create a date object with today's date and the time from the input
+          const [hours, minutes] = timeString.split(":").map(Number);
+          const dateObj = new Date();
+          dateObj.setHours(hours, minutes, 0, 0);
+          return dateObj.toISOString();
+        };
+
+        const attendanceData: Partial<Attendance> = {
+          employee_id: parseInt(data.employeeId),
+          status: data.status,
+          check_in: data.checkIn ? formatTimeToISO(data.checkIn) : undefined,
+          check_out: data.checkOut ? formatTimeToISO(data.checkOut) : undefined,
+          notes: data.notes || undefined,
+          date: formattedDate,
+        };
+
+        let updatedRecord: Attendance;
+
+        if (isEditing && editingId) {
+          // Update existing record
+          updatedRecord = await attendanceApi.updateAttendance(
+            editingId,
+            attendanceData
+          );
+
+          // Update local state
+          setAttendance((prev) =>
+            prev.map((record) =>
+              record.id === editingId ? updatedRecord : record
+            )
+          );
+        } else {
+          updatedRecord = await attendanceApi.createAttendance(
+            attendanceData as Omit<Attendance, "id" | "createdAt" | "updatedAt">
+          );
+
+          // Add to the local state if it's the selected date
+          if (formattedDate === format(selectedDate, "yyyy-MM-dd")) {
+            setAttendance((prev) => [...prev, updatedRecord]);
+          }
+        }
+
+        // Close dialog and reset form
+        setDialogOpen(false);
+        resetForm();
+      } catch (error) {
+        console.error("Error saving attendance:", error);
+        alert("Failed to save attendance");
+      }
+    },
+    [isEditing, editingId, selectedDate, resetForm]
+  );
+
   // Handle check-out for an employee
   const handleCheckOut = useCallback(async (attendanceId: number) => {
-    setUpdatingRecords(prev => ({ ...prev, [attendanceId]: true }));
-    
+    setUpdatingRecords((prev) => ({ ...prev, [attendanceId]: true }));
+
     try {
       const now = new Date();
       const isoTimeString = now.toISOString();
-      
-      const updatedRecord = await attendanceApi.updateAttendance(attendanceId, { check_out: isoTimeString });
-      
-      setAttendance(prev => prev.map(record => 
-        record.id === attendanceId ? updatedRecord : record
-      ));
-      
+
+      const updatedRecord = await attendanceApi.updateAttendance(attendanceId, {
+        check_out: isoTimeString,
+      });
+
+      setAttendance((prev) =>
+        prev.map((record) =>
+          record.id === attendanceId ? updatedRecord : record
+        )
+      );
     } catch (error) {
       console.error("Error updating check-out time:", error);
       alert("Failed to update check-out time");
     } finally {
-      setUpdatingRecords(prev => {
+      setUpdatingRecords((prev) => {
         const updated = { ...prev };
         delete updated[attendanceId];
         return updated;
       });
     }
   }, []);
-  
+
   // Fetch employees and teams data once on mount
   useEffect(() => {
     const fetchMasterData = async () => {
       try {
         const [employeesData, teamsData] = await Promise.all([
           employeeApi.getEmployees(),
-          teamApi.getTeams()
+          teamApi.getTeams(),
         ]);
 
         setEmployees(employeesData);
@@ -238,7 +258,7 @@ const AttendancePage: React.FC = () => {
         console.error("Error fetching master data:", error);
       }
     };
-    
+
     fetchMasterData();
   }, []);
 
@@ -247,7 +267,7 @@ const AttendancePage: React.FC = () => {
     const fetchAttendanceData = async () => {
       setLoading(true);
       try {
-        const date = format(selectedDate, 'yyyy-MM-dd');
+        const date = format(selectedDate, "yyyy-MM-dd");
         const attendanceData = await attendanceApi.getAttendance(date, date);
         setAttendance(attendanceData);
       } catch (error) {
@@ -256,64 +276,89 @@ const AttendancePage: React.FC = () => {
         setLoading(false);
       }
     };
-    
+
     fetchAttendanceData();
   }, [selectedDate]);
-  
+
   // Memoized filtered attendance
   const filteredAttendance = useMemo(() => {
-    return attendance.filter(record => {
+    return attendance.filter((record) => {
       // Filter by status
-      const matchesStatus = statusFilter === "all" || record.status === statusFilter;
-      
+      const matchesStatus =
+        statusFilter === "all" || record.status === statusFilter;
+
       // Filter by team
-      const employee = employees.find(e => e.id === record.employee_id);
-      const matchesTeam = teamFilter === "all" || (employee && employee.team_id === parseInt(teamFilter));
-      
+      const employee = employees.find((e) => e.id === record.employee_id);
+      const matchesTeam =
+        teamFilter === "all" ||
+        (employee && employee.team_id === parseInt(teamFilter));
+
       // Filter by search
-      const employeeName = employee 
+      const employeeName = employee
         ? `${employee.first_name} ${employee.last_name}`.toLowerCase()
         : "";
-      const matchesSearch = searchQuery === "" || employeeName.includes(searchQuery.toLowerCase());
-      
+      const matchesSearch =
+        searchQuery === "" || employeeName.includes(searchQuery.toLowerCase());
+
       return matchesStatus && matchesTeam && matchesSearch;
     });
   }, [attendance, statusFilter, teamFilter, searchQuery, employees]);
-  
+
   // Utility functions to get employee and team information
-  const getEmployeeName = useCallback((employeeId: number) => {
-    const employee = employees.find(e => e.id === employeeId);
-    return employee ? `${employee.first_name} ${employee.last_name}` : "Unknown Employee";
-  }, [employees]);
-  
-  const getTeamName = useCallback((employeeId: number) => {
-    const employee = employees.find(e => e.id === employeeId);
-    if (!employee) return "Unknown Team";
-    
-    const team = teams.find(t => t.id === employee.team_id);
-    return team ? team.name : "Unknown Team";
-  }, [employees, teams]);
-  
-  const getEmployeeInitials = useCallback((employeeId: number) => {
-    const employee = employees.find(e => e.id === employeeId);
-    return employee 
-      ? `${employee.first_name.charAt(0)}${employee.last_name.charAt(0)}`.toUpperCase()
-      : "??";
-  }, [employees]);
-  
+  const getEmployeeName = useCallback(
+    (employeeId: number) => {
+      const employee = employees.find((e) => e.id === employeeId);
+      return employee
+        ? `${employee.first_name} ${employee.last_name}`
+        : "Unknown Employee";
+    },
+    [employees]
+  );
+
+  const getTeamName = useCallback(
+    (employeeId: number) => {
+      const employee = employees.find((e) => e.id === employeeId);
+      if (!employee) return "Unknown Team";
+
+      const team = teams.find((t) => t.id === employee.team_id);
+      return team ? team.name : "Unknown Team";
+    },
+    [employees, teams]
+  );
+
+  const getEmployeeInitials = useCallback(
+    (employeeId: number) => {
+      const employee = employees.find((e) => e.id === employeeId);
+      return employee
+        ? `${employee.first_name.charAt(0)}${employee.last_name.charAt(
+            0
+          )}`.toUpperCase()
+        : "??";
+    },
+    [employees]
+  );
+
   // Submit form handler that connects react-hook-form with our save function
   const onSubmit = form.handleSubmit(handleSaveAttendance);
-  
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold tracking-tight">Attendance</h1>
-        
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Attendance</h1>
+          <p className="text-muted-foreground">
+            View and manage daily attendance records for all employees.
+          </p>
+        </div>
+
         <div className="flex space-x-2">
-          <Dialog open={dialogOpen} onOpenChange={(open) => {
-            setDialogOpen(open);
-            if (!open) resetForm();
-          }}>
+          <Dialog
+            open={dialogOpen}
+            onOpenChange={(open) => {
+              setDialogOpen(open);
+              if (!open) resetForm();
+            }}
+          >
             <DialogTrigger asChild>
               <Button variant="outline">
                 <Calendar className="mr-2 h-4 w-4" />
@@ -322,12 +367,16 @@ const AttendancePage: React.FC = () => {
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>{isEditing ? "Edit Attendance" : "Mark Attendance"}</DialogTitle>
+                <DialogTitle>
+                  {isEditing ? "Edit Attendance" : "Mark Attendance"}
+                </DialogTitle>
                 <DialogDescription>
-                  {isEditing ? "Update attendance record" : "Record attendance for an employee"}
+                  {isEditing
+                    ? "Update attendance record"
+                    : "Record attendance for an employee"}
                 </DialogDescription>
               </DialogHeader>
-              
+
               <form onSubmit={onSubmit} className="grid gap-4 py-4">
                 <div className="grid gap-2">
                   <Label htmlFor="employee">Employee</Label>
@@ -335,7 +384,7 @@ const AttendancePage: React.FC = () => {
                     name="employeeId"
                     control={form.control}
                     render={({ field }) => (
-                      <Select 
+                      <Select
                         value={field.value}
                         onValueChange={field.onChange}
                         disabled={isEditing}
@@ -344,8 +393,11 @@ const AttendancePage: React.FC = () => {
                           <SelectValue placeholder="Select employee" />
                         </SelectTrigger>
                         <SelectContent>
-                          {employees.map(employee => (
-                            <SelectItem key={employee.id} value={employee.id.toString()}>
+                          {employees.map((employee) => (
+                            <SelectItem
+                              key={employee.id}
+                              value={employee.id.toString()}
+                            >
                               {employee.first_name} {employee.last_name}
                             </SelectItem>
                           ))}
@@ -354,7 +406,7 @@ const AttendancePage: React.FC = () => {
                     )}
                   />
                 </div>
-                
+
                 <div className="grid gap-2">
                   <Label>Date</Label>
                   <Controller
@@ -386,14 +438,14 @@ const AttendancePage: React.FC = () => {
                     )}
                   />
                 </div>
-                
+
                 <div className="grid gap-2">
                   <Label htmlFor="status">Status</Label>
                   <Controller
                     name="status"
                     control={form.control}
                     render={({ field }) => (
-                      <Select 
+                      <Select
                         value={field.value}
                         onValueChange={field.onChange}
                       >
@@ -401,17 +453,27 @@ const AttendancePage: React.FC = () => {
                           <SelectValue placeholder="Select status" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value={AttendanceType.PRESENT}>{formatAttendanceStatus(AttendanceType.PRESENT)}</SelectItem>
-                          <SelectItem value={AttendanceType.ABSENT}>{formatAttendanceStatus(AttendanceType.ABSENT)}</SelectItem>
-                          <SelectItem value={AttendanceType.WFH}>{formatAttendanceStatus(AttendanceType.WFH)}</SelectItem>
-                          <SelectItem value={AttendanceType.HALF_DAY}>{formatAttendanceStatus(AttendanceType.HALF_DAY)}</SelectItem>
-                          <SelectItem value={AttendanceType.LEAVE}>{formatAttendanceStatus(AttendanceType.LEAVE)}</SelectItem>
+                          <SelectItem value={AttendanceType.PRESENT}>
+                            {formatAttendanceStatus(AttendanceType.PRESENT)}
+                          </SelectItem>
+                          <SelectItem value={AttendanceType.ABSENT}>
+                            {formatAttendanceStatus(AttendanceType.ABSENT)}
+                          </SelectItem>
+                          <SelectItem value={AttendanceType.WFH}>
+                            {formatAttendanceStatus(AttendanceType.WFH)}
+                          </SelectItem>
+                          <SelectItem value={AttendanceType.HALF_DAY}>
+                            {formatAttendanceStatus(AttendanceType.HALF_DAY)}
+                          </SelectItem>
+                          <SelectItem value={AttendanceType.LEAVE}>
+                            {formatAttendanceStatus(AttendanceType.LEAVE)}
+                          </SelectItem>
                         </SelectContent>
                       </Select>
                     )}
                   />
                 </div>
-                
+
                 <div className="grid grid-cols-2 gap-4">
                   <div className="grid gap-2">
                     <Label htmlFor="check-in">Check In</Label>
@@ -419,11 +481,7 @@ const AttendancePage: React.FC = () => {
                       name="checkIn"
                       control={form.control}
                       render={({ field }) => (
-                        <Input
-                          id="check-in"
-                          type="time"
-                          {...field}
-                        />
+                        <Input id="check-in" type="time" {...field} />
                       )}
                     />
                   </div>
@@ -433,16 +491,12 @@ const AttendancePage: React.FC = () => {
                       name="checkOut"
                       control={form.control}
                       render={({ field }) => (
-                        <Input
-                          id="check-out"
-                          type="time"
-                          {...field}
-                        />
+                        <Input id="check-out" type="time" {...field} />
                       )}
                     />
                   </div>
                 </div>
-                
+
                 <div className="grid gap-2">
                   <Label htmlFor="notes">Notes</Label>
                   <Controller
@@ -457,7 +511,7 @@ const AttendancePage: React.FC = () => {
                     )}
                   />
                 </div>
-                
+
                 <DialogFooter className="mt-4 px-0 pb-0">
                   <Button type="submit">
                     {isEditing ? "Update Attendance" : "Save Attendance"}
@@ -468,13 +522,13 @@ const AttendancePage: React.FC = () => {
           </Dialog>
         </div>
       </div>
-      
+
       <Card>
         <CardHeader>
-          <CardTitle>Attendance Records</CardTitle>
+          {/* <CardTitle>Attendance Records</CardTitle>
           <CardDescription>
             View and manage daily attendance records for all employees.
-          </CardDescription>
+          </CardDescription> */}
         </CardHeader>
         <CardContent>
           <div className="flex flex-col md:flex-row justify-between space-y-4 md:space-y-0 md:space-x-4 mb-6">
@@ -499,7 +553,7 @@ const AttendancePage: React.FC = () => {
                   />
                 </PopoverContent>
               </Popover>
-              
+
               <div className="relative flex-1">
                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
@@ -510,7 +564,7 @@ const AttendancePage: React.FC = () => {
                 />
               </div>
             </div>
-            
+
             <div className="flex space-x-2">
               <Select value={statusFilter} onValueChange={setStatusFilter}>
                 <SelectTrigger className="w-[180px]">
@@ -518,21 +572,31 @@ const AttendancePage: React.FC = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Statuses</SelectItem>
-                  <SelectItem value={AttendanceType.PRESENT}>{formatAttendanceStatus(AttendanceType.PRESENT)}</SelectItem>
-                  <SelectItem value={AttendanceType.ABSENT}>{formatAttendanceStatus(AttendanceType.ABSENT)}</SelectItem>
-                  <SelectItem value={AttendanceType.WFH}>{formatAttendanceStatus(AttendanceType.WFH)}</SelectItem>
-                  <SelectItem value={AttendanceType.HALF_DAY}>{formatAttendanceStatus(AttendanceType.HALF_DAY)}</SelectItem>
-                  <SelectItem value={AttendanceType.LEAVE}>{formatAttendanceStatus(AttendanceType.LEAVE)}</SelectItem>
+                  <SelectItem value={AttendanceType.PRESENT}>
+                    {formatAttendanceStatus(AttendanceType.PRESENT)}
+                  </SelectItem>
+                  <SelectItem value={AttendanceType.ABSENT}>
+                    {formatAttendanceStatus(AttendanceType.ABSENT)}
+                  </SelectItem>
+                  <SelectItem value={AttendanceType.WFH}>
+                    {formatAttendanceStatus(AttendanceType.WFH)}
+                  </SelectItem>
+                  <SelectItem value={AttendanceType.HALF_DAY}>
+                    {formatAttendanceStatus(AttendanceType.HALF_DAY)}
+                  </SelectItem>
+                  <SelectItem value={AttendanceType.LEAVE}>
+                    {formatAttendanceStatus(AttendanceType.LEAVE)}
+                  </SelectItem>
                 </SelectContent>
               </Select>
-              
+
               <Select value={teamFilter} onValueChange={setTeamFilter}>
                 <SelectTrigger className="w-[180px]">
                   <SelectValue placeholder="Filter by team" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Teams</SelectItem>
-                  {teams.map(team => (
+                  {teams.map((team) => (
                     <SelectItem key={team.id} value={team.id.toString()}>
                       {team.name}
                     </SelectItem>
@@ -541,7 +605,7 @@ const AttendancePage: React.FC = () => {
               </Select>
             </div>
           </div>
-          
+
           {loading ? (
             <div className="flex justify-center py-8">
               <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
@@ -549,9 +613,12 @@ const AttendancePage: React.FC = () => {
           ) : filteredAttendance.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-8 text-center">
               <Calendar className="h-12 w-12 text-muted-foreground mb-3" />
-              <h3 className="text-lg font-medium">No attendance records found</h3>
+              <h3 className="text-lg font-medium">
+                No attendance records found
+              </h3>
               <p className="text-sm text-muted-foreground mt-1">
-                No records match your search criteria or filters for the selected date.
+                No records match your search criteria or filters for the
+                selected date.
               </p>
             </div>
           ) : (
@@ -569,7 +636,7 @@ const AttendancePage: React.FC = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredAttendance.map(record => (
+                  {filteredAttendance.map((record) => (
                     <TableRow key={record.id}>
                       <TableCell>
                         <div className="flex items-center">
@@ -582,10 +649,14 @@ const AttendancePage: React.FC = () => {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Badge variant="outline">{getTeamName(record.employee_id)}</Badge>
+                        <Badge variant="outline">
+                          {getTeamName(record.employee_id)}
+                        </Badge>
                       </TableCell>
                       <TableCell>
-                        <Badge className={getAttendanceStatusClass(record.status)}>
+                        <Badge
+                          className={getAttendanceStatusClass(record.status)}
+                        >
                           {formatAttendanceStatus(record.status)}
                         </Badge>
                       </TableCell>
@@ -610,14 +681,25 @@ const AttendancePage: React.FC = () => {
                         )}
                       </TableCell>
                       <TableCell>
-                        <div className="max-w-[200px] truncate" title={record.notes || ""}>
-                          {record.notes || <span className="text-muted-foreground">No notes</span>}
+                        <div
+                          className="max-w-[200px] truncate"
+                          title={record.notes || ""}
+                        >
+                          {record.notes || (
+                            <span className="text-muted-foreground">
+                              No notes
+                            </span>
+                          )}
                         </div>
                       </TableCell>
                       <TableCell className="text-right">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" disabled={updatingRecords[record.id]}>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              disabled={updatingRecords[record.id]}
+                            >
                               {updatingRecords[record.id] ? (
                                 <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
                               ) : (
@@ -626,11 +708,13 @@ const AttendancePage: React.FC = () => {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => openEditDialog(record)}>
+                            <DropdownMenuItem
+                              onClick={() => openEditDialog(record)}
+                            >
                               <Pencil className="h-4 w-4 mr-2" />
                               Edit record
                             </DropdownMenuItem>
-                            <DropdownMenuItem 
+                            <DropdownMenuItem
                               onClick={() => handleCheckOut(record.id)}
                               disabled={!!record.check_out}
                             >

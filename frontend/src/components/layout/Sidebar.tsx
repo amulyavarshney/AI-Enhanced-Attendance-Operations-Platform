@@ -43,10 +43,16 @@ const Sidebar: React.FC = () => {
       
       <nav className="flex-1 py-4">
         <ul className="space-y-1 px-2">
-          <NavItem 
+          {/* <NavItem 
             to="/" 
             icon={<Home size={20} />} 
             label="Dashboard" 
+            collapsed={collapsed} 
+          /> */}
+          <NavItem 
+            to="/" 
+            icon={<Home size={20} />} 
+            label="AI Insights" 
             collapsed={collapsed} 
           />
           <NavItem 
@@ -73,12 +79,12 @@ const Sidebar: React.FC = () => {
             label="Analytics" 
             collapsed={collapsed} 
           />
-          <NavItem 
+          {/* <NavItem 
             to="/ai-insights" 
             icon={<MessageSquare size={20} />} 
             label="AI Insights" 
             collapsed={collapsed} 
-          />
+          /> */}
         </ul>
       </nav>
       

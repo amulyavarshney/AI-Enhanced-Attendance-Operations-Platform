@@ -23,12 +23,13 @@ const App = () => (
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Layout />}>
-            <Route index element={<Dashboard />} />
+            {/* <Route index element={<Dashboard />} /> */}
+            <Route index element={<AIInsights />} />
             <Route path="employees" element={<Employees />} />
             <Route path="attendance" element={<AttendancePage />} />
             <Route path="teams" element={<Teams />} />
             <Route path="analytics" element={<Analytics />} />
-            <Route path="ai-insights" element={<AIInsights />} />
+            {/* <Route path="ai-insights" element={<AIInsights />} /> */}
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>
