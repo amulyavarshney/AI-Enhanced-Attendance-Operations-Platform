@@ -100,12 +100,12 @@ const AttendancePage: React.FC = () => {
     const matchesStatus = statusFilter === "all" || record.status === statusFilter;
     
     // Filter by team
-    const employee = employees.find(e => e.id === record.employeeId);
-    const matchesTeam = teamFilter === "all" || (employee && employee.teamId === parseInt(teamFilter));
+    const employee = employees.find(e => e.id === record.employee_id);
+    const matchesTeam = teamFilter === "all" || (employee && employee.team_id === parseInt(teamFilter));
     
     // Filter by search
     const employeeName = employee 
-      ? `${employee.firstName} ${employee.lastName}`.toLowerCase()
+      ? `${employee.first_name} ${employee.last_name}`.toLowerCase()
       : "";
     const matchesSearch = searchQuery === "" || employeeName.includes(searchQuery.toLowerCase());
     
@@ -114,21 +114,21 @@ const AttendancePage: React.FC = () => {
   
   const getEmployeeName = (employeeId: number) => {
     const employee = employees.find(e => e.id === employeeId);
-    return employee ? `${employee.firstName} ${employee.lastName}` : "Unknown Employee";
+    return employee ? `${employee.first_name} ${employee.last_name}` : "Unknown Employee";
   };
   
   const getTeamName = (employeeId: number) => {
     const employee = employees.find(e => e.id === employeeId);
     if (!employee) return "Unknown Team";
     
-    const team = teams.find(t => t.id === employee.teamId);
+    const team = teams.find(t => t.id === employee.team_id);
     return team ? team.name : "Unknown Team";
   };
   
   const getEmployeeInitials = (employeeId: number) => {
     const employee = employees.find(e => e.id === employeeId);
     return employee 
-      ? `${employee.firstName.charAt(0)}${employee.lastName.charAt(0)}`.toUpperCase()
+      ? `${employee.first_name.charAt(0)}${employee.last_name.charAt(0)}`.toUpperCase()
       : "??";
   };
   
@@ -163,7 +163,7 @@ const AttendancePage: React.FC = () => {
                     <SelectContent>
                       {employees.map(employee => (
                         <SelectItem key={employee.id} value={employee.id.toString()}>
-                          {employee.firstName} {employee.lastName}
+                          {employee.first_name} {employee.last_name}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -352,14 +352,14 @@ const AttendancePage: React.FC = () => {
                         <div className="flex items-center">
                           <Avatar className="h-8 w-8 mr-2">
                             <AvatarFallback className="bg-primary text-primary-foreground">
-                              {getEmployeeInitials(record.employeeId)}
+                              {getEmployeeInitials(record.employee_id)}
                             </AvatarFallback>
                           </Avatar>
-                          <span>{getEmployeeName(record.employeeId)}</span>
+                          <span>{getEmployeeName(record.employee_id)}</span>
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Badge variant="outline">{getTeamName(record.employeeId)}</Badge>
+                        <Badge variant="outline">{getTeamName(record.employee_id)}</Badge>
                       </TableCell>
                       <TableCell>
                         <Badge className={getAttendanceStatusClass(record.status)}>
@@ -367,20 +367,20 @@ const AttendancePage: React.FC = () => {
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        {record.checkIn ? (
+                        {record.check_in ? (
                           <div className="flex items-center">
                             <Clock className="h-3.5 w-3.5 mr-1 text-muted-foreground" />
-                            {formatTime(record.checkIn)}
+                            {formatTime(record.check_in)}
                           </div>
                         ) : (
                           <span className="text-muted-foreground">N/A</span>
                         )}
                       </TableCell>
                       <TableCell>
-                        {record.checkOut ? (
+                        {record.check_out ? (
                           <div className="flex items-center">
                             <Clock className="h-3.5 w-3.5 mr-1 text-muted-foreground" />
-                            {formatTime(record.checkOut)}
+                            {formatTime(record.check_out)}
                           </div>
                         ) : (
                           <span className="text-muted-foreground">N/A</span>

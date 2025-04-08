@@ -3,7 +3,6 @@ import React, { useEffect, useState } from "react";
 import { ArrowUp, ArrowDown, Calendar, CheckCircle2, Users, UserCog, AlertTriangle } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Progress } from "@/components/ui/progress";
 import { 
   fetchAttendance, 
   fetchEmployees, 
@@ -143,21 +142,21 @@ const Dashboard: React.FC = () => {
     const existingDay = acc.find(d => d.date === date);
     
     if (existingDay) {
-      existingDay.present += trend.presentCount;
-      existingDay.wfh += trend.wfhCount;
-      existingDay.absent += trend.absentCount;
-      existingDay.leave += trend.leaveCount;
-      existingDay.halfDay += trend.halfDayCount;
-      existingDay.total += trend.totalEmployees;
+      existingDay.present += trend.present_count;
+      existingDay.wfh += trend.wfh_count;
+      existingDay.absent += trend.absent_count;
+      existingDay.leave += trend.leave_count;
+      existingDay.halfDay += trend.half_day_count;
+      existingDay.total += trend.total_employees;
     } else {
       acc.push({
         date,
-        present: trend.presentCount,
-        wfh: trend.wfhCount,
-        absent: trend.absentCount,
-        leave: trend.leaveCount,
-        halfDay: trend.halfDayCount,
-        total: trend.totalEmployees
+        present: trend.present_count,
+        wfh: trend.wfh_count,
+        absent: trend.absent_count,
+        leave: trend.leave_count,
+        halfDay: trend.half_day_count,
+        total: trend.total_employees
       });
     }
     
@@ -166,19 +165,19 @@ const Dashboard: React.FC = () => {
   
   // Team comparison data
   const teamComparisonData = teams.map(team => {
-    const teamEmployeeCount = employees.filter(e => e.teamId === team.id).length;
-    const teamTrendsData = teamTrends.filter(t => t.teamId === team.id);
+    const teamEmployeeCount = employees.filter(e => e.team_id === team.id).length;
+    const teamTrendsData = teamTrends.filter(t => t.team_id === team.id);
     
     const avgPresent = teamTrendsData.length > 0
-      ? teamTrendsData.reduce((sum, t) => sum + t.presentCount, 0) / teamTrendsData.length
+      ? teamTrendsData.reduce((sum, t) => sum + t.present_count, 0) / teamTrendsData.length
       : 0;
     
     const avgWfh = teamTrendsData.length > 0
-      ? teamTrendsData.reduce((sum, t) => sum + t.wfhCount, 0) / teamTrendsData.length
+      ? teamTrendsData.reduce((sum, t) => sum + t.wfh_count, 0) / teamTrendsData.length
       : 0;
     
     const avgAbsent = teamTrendsData.length > 0
-      ? teamTrendsData.reduce((sum, t) => sum + t.absentCount, 0) / teamTrendsData.length
+      ? teamTrendsData.reduce((sum, t) => sum + t.absent_count, 0) / teamTrendsData.length
       : 0;
     
     const totalAvg = avgPresent + avgWfh + avgAbsent;
