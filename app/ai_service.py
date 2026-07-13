@@ -2,6 +2,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import text
 from datetime import datetime, timedelta, date
 import os
+import re
 import logging
 from openai import AzureOpenAI
 from typing import Dict, Any, List, Tuple, Optional
@@ -28,6 +29,26 @@ Both approaches save insights to the database for future reference.
 """
 
 logger = logging.getLogger(__name__)
+
+# Hard limits for LLM-generated SQL execution
+AI_SQL_MAX_ROWS = int(os.getenv("AI_SQL_MAX_ROWS", "200"))
+AI_SQL_STATEMENT_TIMEOUT_MS = int(os.getenv("AI_SQL_STATEMENT_TIMEOUT_MS", "5000"))
+_FORBIDDEN_SQL_PATTERN = re.compile(
+    r"\b(INSERT|UPDATE|DELETE|DROP|ALTER|TRUNCATE|CREATE|GRANT|REVOKE|"
+    r"COPY|EXECUTE|CALL|MERGE|REPLACE|ATTACH|DETACH|VACUUM|ANALYZE|"
+    r"COMMENT|SECURITY|OWNER|SET\s+ROLE|SET\s+SESSION|pg_sleep|"
+    r"lo_import|lo_export|dblink|INTO\s+OUTFILE)\b",
+    re.IGNORECASE,
+)
+_ALLOWED_TABLES = {
+    "teams",
+    "employees",
+    "attendance",
+    "team_trends",
+    "ai_insights",
+    "daily_attendance_summary",
+    "team_attendance_trends",
+}
 
 class AIService:
     # SQL generation prompt template
@@ -80,6 +101,13 @@ class AIService:
     GROUP BY t.id, t.name
     ORDER BY present_percentage DESC;
     
+    IMPORTANT SAFETY RULES:
+    - Generate ONLY a single SELECT (or WITH ... SELECT) query
+    - Never use INSERT, UPDATE, DELETE, DROP, ALTER, CREATE, TRUNCATE, GRANT, or any write/DDL statement
+    - Always include a LIMIT clause (maximum 200 rows)
+    - Only query these relations: teams, employees, attendance, team_trends, ai_insights,
+      daily_attendance_summary, team_attendance_trends
+    
     User query: {query}
     
     IMPORTANT: Return ONLY the raw SQL query without any markdown formatting, explanation, or code blocks. Do not use ``` or any other markdown. Return just the SQL query itself.
@@ -98,6 +126,7 @@ class AIService:
     3. Use NULLIF() to avoid division by zero
     4. Cast numeric values properly
     5. Ensure date formats are correct
+    6. Query must remain a single read-only SELECT with LIMIT <= 200
     
     Please fix the query. IMPORTANT: Return ONLY the raw SQL query without any markdown formatting, explanation, or code blocks. Do not use ``` or any other markdown tags.
     """
@@ -164,8 +193,25 @@ class AIService:
                 sql_insight = await self.analyze_custom_query(query, db)
                 if sql_insight and "error" not in sql_insight.details:
                     logger.info("SQL-based analysis successful")
-                    self._save_insight(db, sql_insight)
-                    return sql_insight
+                    if isinstance(sql_insight, schemas.AIInsight) and sql_insight.id:
+                        return sql_insight
+                    create_payload = (
+                        sql_insight
+                        if isinstance(sql_insight, schemas.AIInsightCreate)
+                        else schemas.AIInsightCreate(
+                            query=sql_insight.query,
+                            summary=sql_insight.summary,
+                            details=sql_insight.details,
+                            generated_at=sql_insight.generated_at,
+                        )
+                    )
+                    return self._save_insight(db, create_payload) or schemas.AIInsight(
+                        id=0,
+                        query=create_payload.query,
+                        summary=create_payload.summary,
+                        details=create_payload.details,
+                        generated_at=create_payload.generated_at,
+                    )
                 logger.info("SQL-based analysis unsuccessful, falling back to standard approach")
             except Exception as sql_error:
                 logger.warning(f"SQL-based analysis failed, falling back to standard approach: {str(sql_error)}")
@@ -204,14 +250,16 @@ class AIService:
         )
         
         # Create and save insight
-        insight = schemas.AIInsight(
+        insight = schemas.AIInsightCreate(
             query=query,
             summary=response,
             details=details
         )
         
-        self._save_insight(db, insight)
-        return insight
+        return self._save_insight(db, insight) or schemas.AIInsight(
+            id=0, query=insight.query, summary=insight.summary, details=insight.details,
+            generated_at=insight.generated_at
+        )
 
     def _determine_data_type_and_timeframe(self, query: str) -> Tuple[str, date]:
         """Determine data type and timeframe based on query keywords.
@@ -258,7 +306,7 @@ class AIService:
             
         return details, prompt
 
-    async def analyze_custom_query(self, query: str, db: Session) -> schemas.AIInsight:
+    async def analyze_custom_query(self, query: str, db: Session):
         """Process a natural language query, generate SQL, and provide insights.
         
         Args:
@@ -266,7 +314,7 @@ class AIService:
             db: Database session
             
         Returns:
-            AIInsight object containing the query, summary, and details
+            AIInsightCreate on success, AIInsight (with id=0) on error
         """
         if not self.client:
             return self._create_error_insight(
@@ -315,7 +363,10 @@ class AIService:
         sql_prompt = self.SQL_PROMPT_TEMPLATE.format(query=query)
         
         response = self._call_openai(
-            system_content="You are a SQL expert that generates only PostgreSQL queries. Ensure your queries are safe and follow best practices.",
+            system_content=(
+                "You are a SQL expert that generates only safe, read-only PostgreSQL SELECT queries. "
+                "Never generate write or DDL statements. Always include LIMIT."
+            ),
             user_content=sql_prompt,
             temperature=0.1,
             max_tokens=1000
@@ -324,31 +375,65 @@ class AIService:
         logger.info(f"Generated SQL: {response}")
         return response
 
+    def _validate_readonly_sql(self, sql: str) -> str:
+        """Validate LLM-generated SQL is a single safe SELECT and enforce LIMIT."""
+        cleaned = sql.strip().rstrip(";")
+        if not cleaned:
+            raise ValueError("Generated SQL is empty")
+
+        # Reject multiple statements
+        if ";" in cleaned:
+            raise ValueError("Multiple SQL statements are not allowed")
+
+        normalized = re.sub(r"\s+", " ", cleaned).strip()
+        upper = normalized.upper()
+
+        if not (upper.startswith("SELECT") or upper.startswith("WITH")):
+            raise ValueError("Only SELECT queries are allowed")
+
+        if _FORBIDDEN_SQL_PATTERN.search(cleaned):
+            raise ValueError("SQL contains forbidden keywords or operations")
+
+        # Block selecting from clearly disallowed relations when FROM/JOIN is present
+        relation_refs = re.findall(
+            r"(?:FROM|JOIN)\s+([a-zA-Z_][a-zA-Z0-9_]*)",
+            cleaned,
+            flags=re.IGNORECASE,
+        )
+        for relation in relation_refs:
+            if relation.lower() not in _ALLOWED_TABLES:
+                raise ValueError(f"Query references disallowed relation: {relation}")
+
+        if not re.search(r"\bLIMIT\s+\d+", cleaned, flags=re.IGNORECASE):
+            cleaned = f"{cleaned}\nLIMIT {AI_SQL_MAX_ROWS}"
+        else:
+            limit_match = re.search(r"\bLIMIT\s+(\d+)", cleaned, flags=re.IGNORECASE)
+            if limit_match and int(limit_match.group(1)) > AI_SQL_MAX_ROWS:
+                cleaned = re.sub(
+                    r"\bLIMIT\s+\d+",
+                    f"LIMIT {AI_SQL_MAX_ROWS}",
+                    cleaned,
+                    flags=re.IGNORECASE,
+                )
+
+        return cleaned
+
     def _execute_sql_query(self, db: Session, sql: str) -> Tuple[List[Dict[str, Any]], List[str]]:
-        """Execute a SQL query and return the results.
-        
-        Args:
-            db: Database session
-            sql: SQL query to execute
-            
-        Returns:
-            Tuple of (result_data, column_names)
-        """
-        logger.info(f"Executing SQL: {sql}")
-        
-        result = db.execute(text(sql))
-        raw_data = result.fetchall()
-        column_names = result.keys()
-        
-        # Log success and result count
+        """Execute a validated read-only SQL query with timeout and row cap."""
+        safe_sql = self._validate_readonly_sql(sql)
+        logger.info(f"Executing SQL: {safe_sql}")
+
+        db.execute(text(f"SET LOCAL statement_timeout = {AI_SQL_STATEMENT_TIMEOUT_MS}"))
+        result = db.execute(text(safe_sql))
+        raw_data = result.fetchmany(AI_SQL_MAX_ROWS)
+        column_names = list(result.keys())
+
         row_count = len(raw_data)
         logger.info(f"SQL execution successful. Retrieved {row_count} rows.")
         if row_count == 0:
             logger.warning("Query returned 0 rows, but executed successfully.")
-            
-        # Convert to a list of dictionaries
+
         data = [dict(zip(column_names, row)) for row in raw_data]
-        
         return data, column_names
 
     def _analyze_sql_results(self, query: str, sql: str, data: List[Dict[str, Any]]) -> str:
@@ -373,7 +458,7 @@ class AIService:
             user_content=analysis_prompt
         )
 
-    async def _handle_sql_error(self, db: Session, query: str, sql: str, error: str) -> schemas.AIInsight:
+    async def _handle_sql_error(self, db: Session, query: str, sql: str, error: str):
         """Handle SQL execution errors by attempting to fix the query.
         
         Args:
@@ -383,7 +468,7 @@ class AIService:
             error: Error message
             
         Returns:
-            AIInsight object with either fixed SQL results or error details
+            AIInsightCreate on success, AIInsight on error
         """
         # Try to fix the SQL query
         fix_prompt = self.SQL_FIX_PROMPT_TEMPLATE.format(sql=sql, error=error)
@@ -417,7 +502,7 @@ class AIService:
             )
             
             # Create and return insight with fixed SQL
-            return schemas.AIInsight(
+            return schemas.AIInsightCreate(
                 query=query,
                 summary=summary,
                 details={
@@ -468,8 +553,8 @@ class AIService:
         return response.choices[0].message.content.strip()
 
     def _create_sql_insight(self, query: str, summary: str, sql: str, 
-                          data: List[Dict[str, Any]]) -> schemas.AIInsight:
-        """Create an AIInsight object from SQL query results.
+                          data: List[Dict[str, Any]]) -> schemas.AIInsightCreate:
+        """Create an AIInsightCreate object from SQL query results.
         
         Args:
             query: Original natural language query
@@ -478,9 +563,9 @@ class AIService:
             data: Query results
             
         Returns:
-            AIInsight object
+            AIInsightCreate object
         """
-        return schemas.AIInsight(
+        return schemas.AIInsightCreate(
             query=query,
             summary=summary,
             details={
@@ -501,22 +586,28 @@ class AIService:
             AIInsight object with error details
         """
         return schemas.AIInsight(
+            id=0,
             query=query,
             summary=summary,
             details=error_details
         )
 
-    def _save_insight(self, db: Session, insight: schemas.AIInsight) -> None:
+    def _save_insight(self, db: Session, insight: schemas.AIInsightCreate) -> Optional[schemas.AIInsight]:
         """Save an insight to the database, logging errors but not raising exceptions.
         
         Args:
             db: Database session
-            insight: AIInsight object to save
+            insight: AIInsightCreate object to save
+
+        Returns:
+            Saved AIInsight with id, or None if save failed
         """
         try:
-            crud.save_ai_insight(db, insight)
+            saved = crud.save_ai_insight(db, insight)
+            return schemas.AIInsight.model_validate(saved)
         except Exception as e:
             logger.warning(f"Failed to save insight to database: {str(e)}")
+            return None
 
     def _get_attendance_data(self, db: Session, start_date: date) -> List:
         """Get attendance records from the database starting from a given date.
@@ -611,7 +702,7 @@ class AIService:
         """Process attendance data to extract absence information."""
         employee_absences = {}
         for record in attendance_data:
-            if record.status == models.AttendanceType.ABSENT:
+            if record.status == models.AttendanceType.absent:
                 employee_name = self._get_employee_name(record.employee)
                 employee_absences[employee_name] = employee_absences.get(employee_name, 0) + 1
         
@@ -623,12 +714,12 @@ class AIService:
     
     def _process_wfh_data(self, attendance_data) -> Dict[str, Any]:
         """Process attendance data to extract WFH information."""
-        wfh_count = sum(1 for record in attendance_data if record.status == models.AttendanceType.WFH)
+        wfh_count = sum(1 for record in attendance_data if record.status == models.AttendanceType.wfh)
         total_days = len(attendance_data)
         
         employee_wfh = {}
         for record in attendance_data:
-            if record.status == models.AttendanceType.WFH:
+            if record.status == models.AttendanceType.wfh:
                 employee_name = self._get_employee_name(record.employee)
                 employee_wfh[employee_name] = employee_wfh.get(employee_name, 0) + 1
         
@@ -641,12 +732,12 @@ class AIService:
     
     def _process_leave_data(self, attendance_data) -> Dict[str, Any]:
         """Process attendance data to extract leave information."""
-        leave_count = sum(1 for record in attendance_data if record.status == models.AttendanceType.LEAVE)
+        leave_count = sum(1 for record in attendance_data if record.status == models.AttendanceType.leave)
         total_days = len(attendance_data)
         
         employee_leave = {}
         for record in attendance_data:
-            if record.status == models.AttendanceType.LEAVE:
+            if record.status == models.AttendanceType.leave:
                 employee_name = self._get_employee_name(record.employee)
                 employee_leave[employee_name] = employee_leave.get(employee_name, 0) + 1
         
@@ -661,11 +752,11 @@ class AIService:
     def _process_general_data(self, attendance_data) -> Dict[str, Any]:
         """Process attendance data to extract general patterns."""
         status_counts = {
-            models.AttendanceType.PRESENT: 0,
-            models.AttendanceType.ABSENT: 0,
-            models.AttendanceType.WFH: 0,
-            models.AttendanceType.HALF_DAY: 0,
-            models.AttendanceType.LEAVE: 0
+            models.AttendanceType.present: 0,
+            models.AttendanceType.absent: 0,
+            models.AttendanceType.wfh: 0,
+            models.AttendanceType.half_day: 0,
+            models.AttendanceType.leave: 0
         }
         
         for record in attendance_data:

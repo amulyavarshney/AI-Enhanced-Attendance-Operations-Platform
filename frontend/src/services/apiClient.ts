@@ -7,6 +7,18 @@ import {
   TeamTrends,
 } from '@/types/models';
 
+const TOKEN_STORAGE_KEY = 'attendance_auth_token';
+
+export const getAuthToken = (): string | null => localStorage.getItem(TOKEN_STORAGE_KEY);
+
+export const setAuthToken = (token: string): void => {
+  localStorage.setItem(TOKEN_STORAGE_KEY, token);
+};
+
+export const clearAuthToken = (): void => {
+  localStorage.removeItem(TOKEN_STORAGE_KEY);
+};
+
 // Configure axios instance
 const apiClient = axios.create({
   baseURL: import.meta.env.VITE_API_URL,
@@ -15,6 +27,28 @@ const apiClient = axios.create({
   },
 });
 
+apiClient.interceptors.request.use((config) => {
+  const token = getAuthToken();
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
+apiClient.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      clearAuthToken();
+      localStorage.removeItem('attendance_auth_employee');
+      if (window.location.pathname !== '/login') {
+        window.location.assign('/login');
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
 const buildQueryParams = (params: Record<string, number | string | undefined>): string => {
   const validParams = Object.entries(params)
     .filter(([_, value]) => value !== undefined)
@@ -22,6 +56,23 @@ const buildQueryParams = (params: Record<string, number | string | undefined>): 
     .join('&');
   
   return validParams ? `?${validParams}` : '';
+};
+
+export interface TokenResponse {
+  access_token: string;
+  token_type: string;
+  employee: Employee;
+}
+
+export const authApi = {
+  login: async (email: string, password: string): Promise<TokenResponse> => {
+    const response = await apiClient.post<TokenResponse>('/auth/login', { email, password });
+    return response.data;
+  },
+  me: async (): Promise<{ employee: Employee }> => {
+    const response = await apiClient.get<{ employee: Employee }>('/auth/me');
+    return response.data;
+  },
 };
 
 // Employee API
@@ -128,6 +179,10 @@ export const attendanceApi = {
   updateAttendance: async (id: number, attendance: Partial<Omit<Attendance, 'id' | 'createdAt' | 'updatedAt'>>): Promise<Attendance> => {
     const response = await apiClient.put<Attendance>(`/attendance/${id}`, attendance);
     return response.data;
+  },
+
+  deleteAttendance: async (id: number): Promise<void> => {
+    await apiClient.delete(`/attendance/${id}`);
   },
 };
 

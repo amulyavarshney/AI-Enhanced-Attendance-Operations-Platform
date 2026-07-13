@@ -30,9 +30,16 @@ class EmployeeBase(BaseModel):
 
 class EmployeeCreate(EmployeeBase):
     hire_date: date_type = date_type.today()
+    password: Optional[str] = None
 
-class EmployeeUpdate(EmployeeBase):
-    pass
+class EmployeeUpdate(BaseModel):
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    role: Optional[Role] = None
+    team_id: Optional[int] = None
+    password: Optional[str] = None
 
 class Employee(EmployeeBase):
     id: int
@@ -41,6 +48,19 @@ class Employee(EmployeeBase):
 
     class Config:
         from_attributes = True
+
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
+class TokenResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    employee: Employee
+
+class AuthMeResponse(BaseModel):
+    employee: Employee
+
 
 class AttendanceBase(BaseModel):
     employee_id: int
@@ -80,11 +100,14 @@ class TeamTrends(BaseModel):
     class Config:
         from_attributes = True
 
-class AIInsight(BaseModel):
+class AIInsightCreate(BaseModel):
     query: str
     summary: str
     details: Dict[str, Any]
     generated_at: datetime = datetime.utcnow()
+
+class AIInsight(AIInsightCreate):
+    id: int
 
     class Config:
         from_attributes = True 

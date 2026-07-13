@@ -12,6 +12,10 @@ RUN npm ci
 # Copy source code
 COPY . .
 
+# Bake API URL at build time (Vite embeds VITE_* env vars)
+ARG VITE_API_URL=http://localhost:8000
+ENV VITE_API_URL=$VITE_API_URL
+
 # Build the application
 RUN npm run build
 
@@ -32,4 +36,4 @@ HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
     CMD wget --no-verbose --tries=1 --spider http://localhost:80/ || exit 1
 
 # Start Nginx server
-CMD ["nginx", "-g", "daemon off;"] 
+CMD ["nginx", "-g", "daemon off;"]

@@ -46,6 +46,7 @@ CREATE TABLE employees (
     role role DEFAULT 'employee',
     team_id INTEGER REFERENCES teams(id),
     hire_date DATE DEFAULT CURRENT_DATE,
+    hashed_password VARCHAR,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -67,7 +68,7 @@ CREATE TABLE attendance (
 );
 CREATE INDEX idx_attendance_employee_id ON attendance(employee_id);
 CREATE INDEX idx_attendance_date ON attendance(date);
-CREATE INDEX idx_attendance_employee_date ON attendance(employee_id, date);
+CREATE UNIQUE INDEX uq_attendance_employee_date ON attendance(employee_id, date);
 CREATE INDEX idx_attendance_status ON attendance(status);
 
 -- Create team_trends table
@@ -105,27 +106,43 @@ INSERT INTO teams (name) VALUES
 ('Human Resources');
 
 -- Insert sample data for employees
-INSERT INTO employees (first_name, last_name, email, phone, role, team_id, hire_date) VALUES
+-- Default password for all seeded users: Admin123!
+INSERT INTO employees (first_name, last_name, email, phone, role, team_id, hire_date, hashed_password) VALUES
 -- Engineering team
-('John', 'Doe', 'john.doe@example.com', '123-456-7890', 'manager'::role, 1, '2022-01-15'),
-('Jane', 'Smith', 'jane.smith@example.com', '123-456-7891', 'employee'::role, 1, '2022-02-01'),
-('Michael', 'Johnson', 'michael.johnson@example.com', '123-456-7892', 'employee'::role, 1, '2022-03-10'),
+('John', 'Doe', 'john.doe@example.com', '123-456-7890', 'manager'::role, 1, '2022-01-15',
+ '$2b$12$725RI/Kr.uNs9hD70huHp.dK1X7b3bhVbECrhMSC3KDsPp4kCxL7e'),
+('Jane', 'Smith', 'jane.smith@example.com', '123-456-7891', 'employee'::role, 1, '2022-02-01',
+ '$2b$12$725RI/Kr.uNs9hD70huHp.dK1X7b3bhVbECrhMSC3KDsPp4kCxL7e'),
+('Michael', 'Johnson', 'michael.johnson@example.com', '123-456-7892', 'employee'::role, 1, '2022-03-10',
+ '$2b$12$725RI/Kr.uNs9hD70huHp.dK1X7b3bhVbECrhMSC3KDsPp4kCxL7e'),
 
 -- Product team
-('Emily', 'Williams', 'emily.williams@example.com', '123-456-7893', 'manager'::role, 2, '2022-01-20'),
-('David', 'Brown', 'david.brown@example.com', '123-456-7894', 'employee'::role, 2, '2022-02-15'),
+('Emily', 'Williams', 'emily.williams@example.com', '123-456-7893', 'manager'::role, 2, '2022-01-20',
+ '$2b$12$725RI/Kr.uNs9hD70huHp.dK1X7b3bhVbECrhMSC3KDsPp4kCxL7e'),
+('David', 'Brown', 'david.brown@example.com', '123-456-7894', 'employee'::role, 2, '2022-02-15',
+ '$2b$12$725RI/Kr.uNs9hD70huHp.dK1X7b3bhVbECrhMSC3KDsPp4kCxL7e'),
 
 -- Marketing team
-('Sarah', 'Jones', 'sarah.jones@example.com', '123-456-7895', 'manager'::role, 3, '2022-01-25'),
-('Robert', 'Miller', 'robert.miller@example.com', '123-456-7896', 'employee'::role, 3, '2022-02-20'),
+('Sarah', 'Jones', 'sarah.jones@example.com', '123-456-7895', 'manager'::role, 3, '2022-01-25',
+ '$2b$12$725RI/Kr.uNs9hD70huHp.dK1X7b3bhVbECrhMSC3KDsPp4kCxL7e'),
+('Robert', 'Miller', 'robert.miller@example.com', '123-456-7896', 'employee'::role, 3, '2022-02-20',
+ '$2b$12$725RI/Kr.uNs9hD70huHp.dK1X7b3bhVbECrhMSC3KDsPp4kCxL7e'),
 
 -- Sales team
-('Jessica', 'Davis', 'jessica.davis@example.com', '123-456-7897', 'manager'::role, 4, '2022-01-10'),
-('Thomas', 'Wilson', 'thomas.wilson@example.com', '123-456-7898', 'employee'::role, 4, '2022-03-01'),
+('Jessica', 'Davis', 'jessica.davis@example.com', '123-456-7897', 'manager'::role, 4, '2022-01-10',
+ '$2b$12$725RI/Kr.uNs9hD70huHp.dK1X7b3bhVbECrhMSC3KDsPp4kCxL7e'),
+('Thomas', 'Wilson', 'thomas.wilson@example.com', '123-456-7898', 'employee'::role, 4, '2022-03-01',
+ '$2b$12$725RI/Kr.uNs9hD70huHp.dK1X7b3bhVbECrhMSC3KDsPp4kCxL7e'),
 
 -- HR team
-('Lisa', 'Moore', 'lisa.moore@example.com', '123-456-7899', 'manager'::role, 5, '2022-01-05'),
-('James', 'Taylor', 'james.taylor@example.com', '123-456-7900', 'employee'::role, 5, '2022-02-05');
+('Lisa', 'Moore', 'lisa.moore@example.com', '123-456-7899', 'manager'::role, 5, '2022-01-05',
+ '$2b$12$725RI/Kr.uNs9hD70huHp.dK1X7b3bhVbECrhMSC3KDsPp4kCxL7e'),
+('James', 'Taylor', 'james.taylor@example.com', '123-456-7900', 'employee'::role, 5, '2022-02-05',
+ '$2b$12$725RI/Kr.uNs9hD70huHp.dK1X7b3bhVbECrhMSC3KDsPp4kCxL7e'),
+
+-- Platform admin (password: Admin123!)
+('Platform', 'Admin', 'admin@example.com', '000-000-0000', 'admin'::role, 1, '2022-01-01',
+ '$2b$12$725RI/Kr.uNs9hD70huHp.dK1X7b3bhVbECrhMSC3KDsPp4kCxL7e');
 
 -- Insert sample attendance data (last 7 days)
 -- Day 1

@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Enum, Date, Text, JSON
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Enum, Date, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
 from datetime import datetime
@@ -38,6 +38,7 @@ class Employee(Base):
     role = Column(Enum(Role), default=Role.employee)
     team_id = Column(Integer, ForeignKey("teams.id"))
     hire_date = Column(Date, default=datetime.utcnow().date)
+    hashed_password = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow)
     
@@ -46,6 +47,9 @@ class Employee(Base):
 
 class Attendance(Base):
     __tablename__ = "attendance"
+    __table_args__ = (
+        UniqueConstraint("employee_id", "date", name="uq_attendance_employee_date"),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
     employee_id = Column(Integer, ForeignKey("employees.id"))

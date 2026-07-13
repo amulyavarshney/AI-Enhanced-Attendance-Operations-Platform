@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { Bell, Search, User, Users, Building, CheckCircle2, HomeIcon, Trophy } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Users, Building, CheckCircle2, HomeIcon, Trophy, User, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -9,11 +10,10 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Input } from "@/components/ui/input";
 import { employeeApi, teamApi, attendanceApi } from "@/services/apiClient";
 import { format } from "date-fns";
+import { useAuth } from "@/context/AuthContext";
 
-// Interface for our insights data
 interface InsightsData {
   totalUsers: number;
   totalTeams: number;
@@ -24,6 +24,8 @@ interface InsightsData {
 }
 
 const Topbar: React.FC = () => {
+  const { employee, logout } = useAuth();
+  const navigate = useNavigate();
   const [insights, setInsights] = useState<InsightsData>({
     totalUsers: 0,
     totalTeams: 0,
@@ -36,69 +38,53 @@ const Topbar: React.FC = () => {
   useEffect(() => {
     const fetchInsights = async () => {
       try {
-        // Get the current date
         const today = new Date();
         const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-        
-        // Format dates for API calls
-        const startDate = format(firstDayOfMonth, 'yyyy-MM-dd');
-        const endDate = format(today, 'yyyy-MM-dd');
-        
-        // Fetch data in parallel
+        const startDate = format(firstDayOfMonth, "yyyy-MM-dd");
+        const endDate = format(today, "yyyy-MM-dd");
+
         const [employees, teams, attendanceData] = await Promise.all([
           employeeApi.getEmployees(),
           teamApi.getTeams(),
           attendanceApi.getAttendance(startDate, endDate)
         ]);
-        
-        // Calculate attendance rate - no need to filter by date since the API will do that
-        const totalRecords = attendanceData.length || 1; // Avoid division by zero
-        const presentCount = attendanceData.filter(record => record.status === 'present').length;
-        const wfhCount = attendanceData.filter(record => record.status === 'wfh').length;
-        
-        // Calculate rates
+
+        const totalRecords = attendanceData.length || 1;
+        const presentCount = attendanceData.filter(record => record.status === "present").length;
+        const wfhCount = attendanceData.filter(record => record.status === "wfh").length;
         const attendanceRate = Math.round(((presentCount + wfhCount) / totalRecords) * 100);
         const remoteWorkRate = Math.round((wfhCount / totalRecords) * 100);
-        
-        // Find top team (team with highest attendance)
-        let teamAttendance: Record<string, { total: number; present: number; name: string }> = {};
-        
-        // Initialize team attendance records
+
+        const teamAttendance: Record<string, { total: number; present: number; name: string }> = {};
         teams.forEach(team => {
           teamAttendance[team.id] = { total: 0, present: 0, name: team.name };
         });
-        
-        // Calculate attendance by team
+
         attendanceData.forEach(record => {
-          const employee = employees.find(emp => emp.id === record.employee_id);
-          if (employee && employee.team_id) {
-            const teamId = employee.team_id.toString();
+          const matched = employees.find(emp => emp.id === record.employee_id);
+          if (matched && matched.team_id) {
+            const teamId = matched.team_id.toString();
             if (teamAttendance[teamId]) {
               teamAttendance[teamId].total += 1;
-              if (record.status === 'present' || record.status === 'wfh') {
+              if (record.status === "present" || record.status === "wfh") {
                 teamAttendance[teamId].present += 1;
               }
             }
           }
         });
-        
-        // Find team with highest attendance rate
-        let topTeamId = "";
-        let topAttendanceRate = 0;
-        
-        Object.entries(teamAttendance).forEach(([teamId, data]) => {
-          if (data.total > 0) {
-            const rate = data.present / data.total;
-            if (rate > topAttendanceRate) {
-              topAttendanceRate = rate;
-              topTeamId = teamId;
+
+        let topTeam = "N/A";
+        let highestRate = -1;
+        Object.values(teamAttendance).forEach(team => {
+          if (team.total > 0) {
+            const rate = team.present / team.total;
+            if (rate > highestRate) {
+              highestRate = rate;
+              topTeam = team.name;
             }
           }
         });
-        
-        const topTeam = topTeamId ? teamAttendance[topTeamId].name : "N/A";
-        
-        // Update insights
+
         setInsights({
           totalUsers: employees.length,
           totalTeams: teams.length,
@@ -107,15 +93,19 @@ const Topbar: React.FC = () => {
           topTeam,
           loading: false
         });
-        
       } catch (error) {
         console.error("Error fetching insights:", error);
         setInsights(prev => ({ ...prev, loading: false }));
       }
     };
-    
+
     fetchInsights();
   }, []);
+
+  const handleLogout = () => {
+    logout();
+    navigate("/login", { replace: true });
+  };
 
   return (
     <header className="bg-background border-b border-border h-16 flex items-center justify-between px-6 py-2">
@@ -123,7 +113,6 @@ const Topbar: React.FC = () => {
         <div className="flex items-center space-x-2 bg-muted/50 p-2 rounded-lg">
           <div className="flex flex-col">
             <span className="text-xs text-muted-foreground">Attendance Insights</span>
-            {/* <span className="text-sm font-medium">Team Performance</span> */}
           </div>
           <div className="h-8 w-px bg-border mx-2" />
           <div className="flex items-center space-x-2">
@@ -152,31 +141,34 @@ const Topbar: React.FC = () => {
           </div>
         </div>
       </div>
-      
-      {/* <div className="flex items-center space-x-4">
-        <Button variant="ghost" size="icon">
-          <Bell size={20} />
-        </Button>
-        
+
+      <div className="flex items-center space-x-4">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button 
-              variant="ghost" 
+            <Button
+              variant="ghost"
               className="relative rounded-full h-8 w-8 flex items-center justify-center"
             >
               <User size={20} />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuLabel>My Account</DropdownMenuLabel>
+            <DropdownMenuLabel>
+              {employee ? `${employee.first_name} ${employee.last_name}` : "Account"}
+            </DropdownMenuLabel>
+            {employee && (
+              <DropdownMenuItem disabled className="text-xs text-muted-foreground">
+                {employee.email} · {employee.role}
+              </DropdownMenuItem>
+            )}
             <DropdownMenuSeparator />
-            <DropdownMenuItem>Profile</DropdownMenuItem>
-            <DropdownMenuItem>Settings</DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem>Logout</DropdownMenuItem>
+            <DropdownMenuItem onClick={handleLogout}>
+              <LogOut size={14} className="mr-2" />
+              Logout
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
-      </div> */}
+      </div>
     </header>
   );
 };

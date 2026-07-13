@@ -11,6 +11,11 @@ services:
       - "8000:8000"
     environment:
       - DATABASE_URL=postgresql://postgres:postgres@db:5432/attendance_db
+      - APP_ENV=${APP_ENV:-development}
+      - ADMIN_API_KEY=${ADMIN_API_KEY:-dev_reset_key}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-dev-only-change-me-in-production}
+      - JWT_EXPIRE_MINUTES=${JWT_EXPIRE_MINUTES:-480}
+      - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:3000,http://localhost:8080}
       - AZURE_OPENAI_API_KEY=${AZURE_OPENAI_API_KEY}
       - AZURE_OPENAI_API_VERSION=${AZURE_OPENAI_API_VERSION}
       - AZURE_OPENAI_ENDPOINT=${AZURE_OPENAI_ENDPOINT}
@@ -19,7 +24,7 @@ services:
       db:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/')"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -35,14 +40,14 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        - VITE_API_URL=http://localhost:8000
     container_name: attendance-frontend
     restart: unless-stopped
     ports:
       - "3000:80"
     depends_on:
       - api
-    environment:
-      - VITE_API_URL=http://localhost:8000
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:80/"]
       interval: 30s
@@ -64,6 +69,7 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./scripts/schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
@@ -78,4 +84,4 @@ networks:
     driver: bridge
 
 volumes:
-  postgres_data: 
+  postgres_data:
