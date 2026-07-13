@@ -185,6 +185,20 @@ async def get_teams(
         logger.error(f"Error fetching teams: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
+@app.get("/teams/page",
+         response_model=schemas.PaginatedTeams,
+         tags=["Teams"],
+         summary="Get Teams (Paginated)",
+         dependencies=[Depends(get_current_user)])
+async def get_teams_page(
+    db: Session = Depends(get_db),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=200),
+    search: Optional[str] = Query(None),
+):
+    items, total = crud.get_teams_paginated(db, skip=skip, limit=limit, search=search)
+    return schemas.PaginatedTeams(items=items, total=total, skip=skip, limit=limit)
+
 @app.get("/teams/{team_id}", 
          response_model=schemas.Team,
          tags=["Teams"],
@@ -399,6 +413,22 @@ async def get_employees(
     """
     return crud.get_employees(db)
 
+@app.get("/employees/page",
+         response_model=schemas.PaginatedEmployees,
+         tags=["Employees"],
+         summary="Get Employees (Paginated)",
+         dependencies=[Depends(get_current_user)])
+async def get_employees_page(
+    db: Session = Depends(get_db),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=200),
+    team_id: Optional[int] = Query(None),
+    search: Optional[str] = Query(None),
+):
+    items, total = crud.get_employees_paginated(
+        db, skip=skip, limit=limit, team_id=team_id, search=search
+    )
+    return schemas.PaginatedEmployees(items=items, total=total, skip=skip, limit=limit)
 
 @app.get("/employees/{employee_id}", 
          response_model=schemas.Employee,
@@ -586,6 +616,62 @@ async def get_all_attendance(
         return crud.get_attendance_by_date(db, start_date, end_date)
     except Exception as e:
         logger.error(f"Error fetching attendance: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+@app.get("/attendance/page",
+         response_model=schemas.PaginatedAttendance,
+         tags=["Attendance"],
+         summary="Get Attendance (Paginated)",
+         dependencies=[Depends(get_current_user)])
+async def get_attendance_page(
+    db: Session = Depends(get_db),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=200),
+    start_date: Optional[date] = Query(None),
+    end_date: Optional[date] = Query(None),
+    employee_id: Optional[int] = Query(None),
+    status: Optional[models.AttendanceType] = Query(None),
+):
+    items, total = crud.get_attendance_paginated(
+        db,
+        skip=skip,
+        limit=limit,
+        start_date=start_date,
+        end_date=end_date,
+        employee_id=employee_id,
+        status=status,
+    )
+    return schemas.PaginatedAttendance(items=items, total=total, skip=skip, limit=limit)
+
+@app.get("/dashboard/stats",
+         response_model=schemas.DashboardStats,
+         tags=["Dashboard"],
+         summary="Get Dashboard Stats",
+         description="Get today's attendance and org summary statistics.",
+         dependencies=[Depends(get_current_user)])
+async def get_dashboard_stats(db: Session = Depends(get_db)):
+    try:
+        return crud.get_dashboard_stats(db)
+    except Exception as e:
+        logger.error(f"Error fetching dashboard stats: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+@app.get("/dashboard/trends",
+         response_model=List[schemas.TeamTrends],
+         tags=["Dashboard"],
+         summary="Get Attendance Trends",
+         description="Get team attendance trends across all teams for a date range.",
+         dependencies=[Depends(get_current_user)])
+async def get_dashboard_trends(
+    db: Session = Depends(get_db),
+    start_date: Optional[date] = Query(None, description="Start date YYYY-MM-DD"),
+    end_date: Optional[date] = Query(None, description="End date YYYY-MM-DD"),
+    team_id: Optional[int] = Query(None, description="Optional team filter"),
+):
+    try:
+        return crud.get_all_team_trends(db, start_date=start_date, end_date=end_date, team_id=team_id)
+    except Exception as e:
+        logger.error(f"Error fetching dashboard trends: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 @app.get("/attendance/{attendance_id}",

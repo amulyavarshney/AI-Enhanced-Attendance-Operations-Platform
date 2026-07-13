@@ -10,11 +10,12 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Attendance, Team, TeamTrends } from "@/types/models";
-import { fetchAttendance, fetchTeams, fetchTeamTrends } from "@/services/mockData";
+import { teamApi, attendanceApi, dashboardApi } from "@/services/apiClient";
 import { formatDate } from "@/utils/formatters";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { Button } from "@/components/ui/button";
 import { DateRange } from "react-day-picker";
+import { format } from "date-fns";
 
 import {
   AreaChart,
@@ -61,7 +62,7 @@ const Analytics: React.FC = () => {
       setLoading(true);
       try {
         const [teamsData] = await Promise.all([
-          fetchTeams(),
+          teamApi.getTeams(),
         ]);
         
         setTeams(teamsData);
@@ -119,12 +120,12 @@ const Analytics: React.FC = () => {
     const fetchData = async () => {
       setLoading(true);
       try {
-        const startDateStr = startDate.toISOString().split('T')[0];
-        const endDateStr = endDate.toISOString().split('T')[0];
+        const startDateStr = format(startDate, "yyyy-MM-dd");
+        const endDateStr = format(endDate, "yyyy-MM-dd");
         
         const [attendanceData, teamTrendsData] = await Promise.all([
-          fetchAttendance(startDateStr, endDateStr),
-          fetchTeamTrends(undefined, startDateStr, endDateStr)
+          attendanceApi.getAttendance(startDateStr, endDateStr),
+          dashboardApi.getTrends(startDateStr, endDateStr)
         ]);
         
         setAttendance(attendanceData);
@@ -140,15 +141,15 @@ const Analytics: React.FC = () => {
   }, [startDate, endDate]);
   
   // Filter data based on selections
-  const filterDataByTeam = (data: any[]) => {
+  const filterDataByTeam = (data: TeamTrends[]) => {
     if (selectedTeam === "all") return data;
-    return data.filter(item => item.teamId === parseInt(selectedTeam));
+    return data.filter(item => item.team_id === parseInt(selectedTeam));
   };
   
   // Filter data based on selected period
-  const filterDataByPeriod = (data: any[]) => {
-    const startDateString = startDate.toISOString().split('T')[0];
-    const endDateString = endDate.toISOString().split('T')[0];
+  const filterDataByPeriod = <T extends { date: string }>(data: T[]) => {
+    const startDateString = format(startDate, "yyyy-MM-dd");
+    const endDateString = format(endDate, "yyyy-MM-dd");
     
     return data.filter(item => {
       const itemDate = item.date ? item.date.split('T')[0] : "";
@@ -211,11 +212,11 @@ const Analytics: React.FC = () => {
         };
       }
       
-      trendsData[date].present += trend.presentCount;
-      trendsData[date].absent += trend.absentCount;
-      trendsData[date].wfh += trend.wfhCount;
-      trendsData[date].halfDay += trend.halfDayCount;
-      trendsData[date].leave += trend.leaveCount;
+      trendsData[date].present += trend.present_count;
+      trendsData[date].absent += trend.absent_count;
+      trendsData[date].wfh += trend.wfh_count;
+      trendsData[date].halfDay += trend.half_day_count;
+      trendsData[date].leave += trend.leave_count;
     });
     
     return Object.values(trendsData).sort((a, b) => 
@@ -240,14 +241,14 @@ const Analytics: React.FC = () => {
     });
     
     filteredTrends.forEach(trend => {
-      const team = teamData[trend.teamId];
+      const team = teamData[trend.team_id];
       if (team) {
-        const total = trend.presentCount + trend.absentCount + trend.wfhCount + trend.leaveCount + trend.halfDayCount;
+        const total = trend.present_count + trend.absent_count + trend.wfh_count + trend.leave_count + trend.half_day_count;
         
         if (total > 0) {
-          team.presentRate += (trend.presentCount / total) * 100;
-          team.absentRate += ((trend.absentCount + trend.leaveCount) / total) * 100;
-          team.wfhRate += (trend.wfhCount / total) * 100;
+          team.presentRate += (trend.present_count / total) * 100;
+          team.absentRate += ((trend.absent_count + trend.leave_count) / total) * 100;
+          team.wfhRate += (trend.wfh_count / total) * 100;
           team.count += 1;
         }
       }

@@ -61,7 +61,6 @@ class TokenResponse(BaseModel):
 class AuthMeResponse(BaseModel):
     employee: Employee
 
-
 class AttendanceBase(BaseModel):
     employee_id: int
     status: AttendanceType
@@ -110,4 +109,36 @@ class AIInsight(AIInsightCreate):
     id: int
 
     class Config:
-        from_attributes = True 
+        from_attributes = True
+
+class PaginatedEmployees(BaseModel):
+    items: List[Employee]
+    total: int
+    skip: int
+    limit: int
+
+class PaginatedTeams(BaseModel):
+    items: List[Team]
+    total: int
+    skip: int
+    limit: int
+
+class PaginatedAttendance(BaseModel):
+    items: List[Attendance]
+    total: int
+    skip: int
+    limit: int
+
+class DashboardStats(BaseModel):
+    date: date_type
+    total_employees: int
+    total_teams: int
+    present_count: int
+    absent_count: int
+    wfh_count: int
+    half_day_count: int
+    leave_count: int
+    present_percentage: int
+    wfh_percentage: int
+    absent_percentage: int
+    records_today: int

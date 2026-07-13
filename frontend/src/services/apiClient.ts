@@ -49,9 +49,9 @@ apiClient.interceptors.response.use(
   }
 );
 
-const buildQueryParams = (params: Record<string, number | string | undefined>): string => {
+const buildQueryParams = (params: Record<string, number | string | undefined | null>): string => {
   const validParams = Object.entries(params)
-    .filter(([_, value]) => value !== undefined)
+    .filter(([_, value]) => value !== undefined && value !== null && value !== '')
     .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(String(value))}`)
     .join('&');
   
@@ -203,76 +203,63 @@ export const insightApi = {
   },
 };
 
-// // Dashboard API
-// export const dashboardApi = {
-//   getDashboardStats: async (): Promise<DashboardStats> => {
-//     const response = await apiClient.get<DashboardStats>('/dashboard/stats');
-//     return response.data;
-//   },
-  
-//   getAttendanceTrendChartData: async (): Promise<ChartData> => {
-//     const response = await apiClient.get<ChartData>('/dashboard/charts/attendance-trend');
-//     return response.data;
-//   },
-  
-//   getTodayAttendancePieChartData: async (): Promise<ChartData> => {
-//     const response = await apiClient.get<ChartData>('/dashboard/charts/today-attendance');
-//     return response.data;
-//   },
-  
-//   getTeamComparisonChartData: async (): Promise<ChartData> => {
-//     const response = await apiClient.get<ChartData>('/dashboard/charts/team-comparison');
-//     return response.data;
-//   }
-// };
+export interface DashboardStats {
+  date: string;
+  total_employees: number;
+  total_teams: number;
+  present_count: number;
+  absent_count: number;
+  wfh_count: number;
+  half_day_count: number;
+  leave_count: number;
+  present_percentage: number;
+  wfh_percentage: number;
+  absent_percentage: number;
+  records_today: number;
+}
 
-// // Notification API
-// export const notificationApi = {
-//   getNotifications: async (userId: string): Promise<Notification[]> => {
-//     const response = await apiClient.get<Notification[]>(`/notifications?userId=${userId}`);
-//     return response.data;
-//   },
-  
-//   markAsRead: async (notificationId: string): Promise<Notification> => {
-//     const response = await apiClient.put<Notification>(`/notifications/${notificationId}/read`);
-//     return response.data;
-//   },
-  
-//   markAllAsRead: async (userId: string): Promise<{ message: string }> => {
-//     const response = await apiClient.put<{ message: string }>(`/notifications/read-all?userId=${userId}`);
-//     return response.data;
-//   },
-  
-//   deleteNotification: async (notificationId: string): Promise<{ message: string }> => {
-//     const response = await apiClient.delete<{ message: string }>(`/notifications/${notificationId}`);
-//     return response.data;
-//   }
-// };
+export interface PaginatedResponse<T> {
+  items: T[];
+  total: number;
+  skip: number;
+  limit: number;
+}
 
-// // Audit Log API
-// export const auditApi = {
-//   getAuditLogs: async (limit: number = 50, skip: number = 0): Promise<AuditLog[]> => {
-//     const response = await apiClient.get<AuditLog[]>(`/audit-logs?limit=${limit}&skip=${skip}`);
-//     return response.data;
-//   },
-  
-//   getUserAuditLogs: async (userId: string): Promise<AuditLog[]> => {
-//     const response = await apiClient.get<AuditLog[]>(`/audit-logs?userId=${userId}`);
-//     return response.data;
-//   }
-// };
+export const dashboardApi = {
+  getStats: async (): Promise<DashboardStats> => {
+    const response = await apiClient.get<DashboardStats>('/dashboard/stats');
+    return response.data;
+  },
+  getTrends: async (startDate?: string, endDate?: string, teamId?: number): Promise<TeamTrends[]> => {
+    const params = { start_date: startDate, end_date: endDate, team_id: teamId };
+    const endpoint = '/dashboard/trends' + buildQueryParams(params);
+    const response = await apiClient.get<TeamTrends[]>(endpoint);
+    return response.data;
+  },
+};
 
-// // Error handling interceptor
-// apiClient.interceptors.response.use(
-//   response => response,
-//   error => {
-//     if (axios.isAxiosError(error) && error.response) {
-//       // Extract the detail message from the API error response
-//       const errorMessage = error.response.data?.message || 'An error occurred';
-//       return Promise.reject(new Error(errorMessage));
-//     }
-//     return Promise.reject(error);
-//   }
-// );
+export const pagedApi = {
+  getEmployees: async (skip = 0, limit = 50, teamId?: number, search?: string): Promise<PaginatedResponse<Employee>> => {
+    const params = { skip, limit, team_id: teamId, search };
+    const response = await apiClient.get<PaginatedResponse<Employee>>('/employees/page' + buildQueryParams(params));
+    return response.data;
+  },
+  getTeams: async (skip = 0, limit = 50, search?: string): Promise<PaginatedResponse<Team>> => {
+    const params = { skip, limit, search };
+    const response = await apiClient.get<PaginatedResponse<Team>>('/teams/page' + buildQueryParams(params));
+    return response.data;
+  },
+  getAttendance: async (
+    skip = 0,
+    limit = 50,
+    startDate?: string,
+    endDate?: string,
+    employeeId?: number,
+  ): Promise<PaginatedResponse<Attendance>> => {
+    const params = { skip, limit, start_date: startDate, end_date: endDate, employee_id: employeeId };
+    const response = await apiClient.get<PaginatedResponse<Attendance>>('/attendance/page' + buildQueryParams(params));
+    return response.data;
+  },
+};
 
 export default apiClient;

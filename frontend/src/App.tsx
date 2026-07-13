@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Navigate, Routes, Route } from "react-router-dom";
 import NotFound from "./pages/NotFound";
 import Layout from "./components/layout/Layout";
+import Dashboard from "./pages/Dashboard";
 import Employees from "./pages/Employees";
 import AttendancePage from "./pages/Attendance";
 import Teams from "./pages/Teams";
@@ -35,11 +36,12 @@ const AppRoutes = () => (
         </ProtectedRoute>
       }
     >
-      <Route index element={<AIInsights />} />
+      <Route index element={<Dashboard />} />
       <Route path="employees" element={<Employees />} />
       <Route path="attendance" element={<AttendancePage />} />
       <Route path="teams" element={<Teams />} />
       <Route path="analytics" element={<Analytics />} />
+      <Route path="ai-insights" element={<AIInsights />} />
     </Route>
     <Route path="*" element={<NotFound />} />
   </Routes>

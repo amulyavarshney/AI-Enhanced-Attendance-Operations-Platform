@@ -3,14 +3,10 @@ import React, { useEffect, useState } from "react";
 import { ArrowUp, ArrowDown, Calendar, CheckCircle2, Users, UserCog, AlertTriangle } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { 
-  fetchAttendance, 
-  fetchEmployees, 
-  fetchTeams, 
-  fetchTeamTrends 
-} from "@/services/mockData";
+import { employeeApi, teamApi, attendanceApi, dashboardApi } from "@/services/apiClient";
 import { formatDate } from "@/utils/formatters";
 import { Employee, Attendance, Team, TeamTrends, AttendanceType } from "@/types/models";
+import { format, subDays } from "date-fns";
 
 import {
   AreaChart,
@@ -88,20 +84,23 @@ const Dashboard: React.FC = () => {
     const fetchData = async () => {
       setLoading(true);
       try {
+        const end = new Date();
+        const start = subDays(end, 30);
+        const startDate = format(start, "yyyy-MM-dd");
+        const endDate = format(end, "yyyy-MM-dd");
+        const today = format(end, "yyyy-MM-dd");
+
         const [employeesData, teamsData, attendanceData, teamTrendsData] = await Promise.all([
-          fetchEmployees(),
-          fetchTeams(),
-          fetchAttendance(),
-          fetchTeamTrends()
+          employeeApi.getEmployees(),
+          teamApi.getTeams(),
+          attendanceApi.getAttendance(startDate, endDate),
+          dashboardApi.getTrends(startDate, endDate),
         ]);
         
         setEmployees(employeesData);
         setTeams(teamsData);
         setAttendance(attendanceData);
         setTeamTrends(teamTrendsData);
-        
-        // Get today's attendance
-        const today = new Date().toISOString().split('T')[0];
         setTodayAttendance(attendanceData.filter(a => a.date === today));
       } catch (error) {
         console.error("Error fetching dashboard data:", error);

@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
-from sqlalchemy import func
+from sqlalchemy import func, or_
 from datetime import date
-from typing import List, Optional
+from typing import List, Optional, Dict, Any, Tuple
 from . import models, schemas
 import logging
 
@@ -410,3 +410,132 @@ def save_ai_insight(db: Session, insight: schemas.AIInsightCreate) -> models.AII
 def get_ai_insights(db: Session, limit: int = 10) -> List[models.AIInsight]:
     """Get saved AI insights from the database, ordered by most recent first"""
     return db.query(models.AIInsight).order_by(models.AIInsight.generated_at.desc()).limit(limit).all()
+
+
+def get_employees_paginated(
+    db: Session,
+    *,
+    skip: int = 0,
+    limit: int = 50,
+    team_id: Optional[int] = None,
+    search: Optional[str] = None,
+) -> tuple[List[models.Employee], int]:
+    query = db.query(models.Employee)
+    if team_id is not None:
+        query = query.filter(models.Employee.team_id == team_id)
+    if search:
+        pattern = f"%{search}%"
+        query = query.filter(
+            or_(
+                models.Employee.first_name.ilike(pattern),
+                models.Employee.last_name.ilike(pattern),
+                models.Employee.email.ilike(pattern),
+            )
+        )
+    total = query.count()
+    items = query.order_by(models.Employee.id).offset(skip).limit(limit).all()
+    return items, total
+
+
+def get_teams_paginated(
+    db: Session,
+    *,
+    skip: int = 0,
+    limit: int = 50,
+    search: Optional[str] = None,
+) -> tuple[List[models.Team], int]:
+    query = db.query(models.Team)
+    if search:
+        query = query.filter(models.Team.name.ilike(f"%{search}%"))
+    total = query.count()
+    items = query.order_by(models.Team.id).offset(skip).limit(limit).all()
+    return items, total
+
+
+def get_attendance_paginated(
+    db: Session,
+    *,
+    skip: int = 0,
+    limit: int = 50,
+    start_date: Optional[date] = None,
+    end_date: Optional[date] = None,
+    employee_id: Optional[int] = None,
+    status: Optional[models.AttendanceType] = None,
+) -> tuple[List[models.Attendance], int]:
+    query = db.query(models.Attendance)
+    if start_date:
+        query = query.filter(models.Attendance.date >= start_date)
+    if end_date:
+        query = query.filter(models.Attendance.date <= end_date)
+    if employee_id is not None:
+        query = query.filter(models.Attendance.employee_id == employee_id)
+    if status is not None:
+        query = query.filter(models.Attendance.status == status)
+    total = query.count()
+    items = (
+        query.order_by(models.Attendance.date.desc(), models.Attendance.id.desc())
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
+    return items, total
+
+
+def get_all_team_trends(
+    db: Session,
+    start_date: Optional[date] = None,
+    end_date: Optional[date] = None,
+    team_id: Optional[int] = None,
+) -> List[models.TeamTrends]:
+    query = db.query(models.TeamTrends)
+    if team_id is not None:
+        query = query.filter(models.TeamTrends.team_id == team_id)
+    if start_date:
+        query = query.filter(models.TeamTrends.date >= start_date)
+    if end_date:
+        query = query.filter(models.TeamTrends.date <= end_date)
+    return query.order_by(models.TeamTrends.date.asc()).all()
+
+
+def get_dashboard_stats(db: Session) -> Dict[str, Any]:
+    today = date.today()
+    total_employees = db.query(func.count(models.Employee.id)).scalar() or 0
+    total_teams = db.query(func.count(models.Team.id)).scalar() or 0
+
+    status_rows = (
+        db.query(models.Attendance.status, func.count(models.Attendance.id))
+        .filter(models.Attendance.date == today)
+        .group_by(models.Attendance.status)
+        .all()
+    )
+    counts = {
+        models.AttendanceType.present: 0,
+        models.AttendanceType.absent: 0,
+        models.AttendanceType.wfh: 0,
+        models.AttendanceType.half_day: 0,
+        models.AttendanceType.leave: 0,
+    }
+    for status, count in status_rows:
+        counts[status] = count
+
+    present_count = counts[models.AttendanceType.present]
+    wfh_count = counts[models.AttendanceType.wfh]
+    absent_count = counts[models.AttendanceType.absent]
+    half_day_count = counts[models.AttendanceType.half_day]
+    leave_count = counts[models.AttendanceType.leave]
+    recorded = present_count + wfh_count + absent_count + half_day_count + leave_count
+
+    return {
+        "date": today,
+        "total_employees": total_employees,
+        "total_teams": total_teams,
+        "present_count": present_count,
+        "absent_count": absent_count,
+        "wfh_count": wfh_count,
+        "half_day_count": half_day_count,
+        "leave_count": leave_count,
+        "present_percentage": round((present_count / total_employees) * 100) if total_employees else 0,
+        "wfh_percentage": round((wfh_count / total_employees) * 100) if total_employees else 0,
+        "absent_percentage": round(((absent_count + leave_count) / total_employees) * 100) if total_employees else 0,
+        "records_today": recorded,
+    }
