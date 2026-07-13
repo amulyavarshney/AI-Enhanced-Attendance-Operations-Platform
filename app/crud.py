@@ -1,5 +1,6 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import func, or_
+from sqlalchemy.exc import IntegrityError
 from datetime import date
 from typing import List, Optional, Dict, Any, Tuple
 from . import models, schemas
@@ -20,6 +21,10 @@ def create_employee(db: Session, employee: schemas.EmployeeCreate) -> models.Emp
     """Create a new employee"""
     from .auth import hash_password
 
+    existing = db.query(models.Employee).filter(models.Employee.email == employee.email).first()
+    if existing:
+        raise ValueError("Employee with this email already exists")
+
     employee_data = employee.model_dump(exclude={"password"})
     password = employee.password
     db_employee = models.Employee(**employee_data)
@@ -31,6 +36,10 @@ def create_employee(db: Session, employee: schemas.EmployeeCreate) -> models.Emp
         db.commit()
         db.refresh(db_employee)
         return db_employee
+    except IntegrityError as e:
+        db.rollback()
+        logger.error(f"Integrity error creating employee: {str(e)}")
+        raise ValueError("Employee with this email already exists")
     except Exception as e:
         db.rollback()
         logger.error(f"Error creating employee: {str(e)}")

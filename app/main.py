@@ -16,9 +16,14 @@ from .auth import (
     require_roles,
     warn_if_insecure_defaults,
 )
+from .middleware import RequestLoggingMiddleware
+from .rate_limit import rate_limit_ai
 
 # Configure logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s [%(name)s] %(message)s",
+)
 logger = logging.getLogger(__name__)
 
 APP_ENV = os.getenv("APP_ENV", "development").lower()
@@ -74,6 +79,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(RequestLoggingMiddleware)
 
 # Initialize AI service
 ai_service = AIService()
@@ -392,6 +398,11 @@ async def create_employee(
     """
     try:
         return crud.create_employee(db, employee)
+    except ValueError as e:
+        detail = str(e)
+        if "already exists" in detail.lower():
+            raise HTTPException(status_code=409, detail=detail)
+        raise HTTPException(status_code=400, detail=detail)
     except Exception as e:
         logger.error(f"Error creating employee: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
@@ -778,7 +789,7 @@ async def delete_attendance(
          tags=["AI Insights"],
          summary="Get AI-Generated Insights",
          description="Get AI-powered insights about attendance patterns and trends.",
-         dependencies=[Depends(require_roles("admin", "manager"))])
+         dependencies=[Depends(require_roles("admin", "manager")), Depends(rate_limit_ai)])
 async def get_ai_insights(
     query: str,
     db: Session = Depends(get_db)
@@ -814,7 +825,7 @@ async def get_ai_insights(
          tags=["AI Insights"],
          summary="Get SQL-based AI Insights",
          description="Convert natural language to SQL and get data-driven insights.",
-         dependencies=[Depends(require_roles("admin", "manager"))])
+         dependencies=[Depends(require_roles("admin", "manager")), Depends(rate_limit_ai)])
 async def get_sql_insights(
     query: str,
     db: Session = Depends(get_db)

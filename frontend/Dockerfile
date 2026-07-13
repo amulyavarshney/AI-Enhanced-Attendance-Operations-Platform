@@ -22,11 +22,14 @@ RUN npm run build
 # Production stage
 FROM nginx:stable-alpine
 
+ARG VITE_API_URL=http://localhost:8000
+
 # Copy the build output
 COPY --from=build /app/dist /usr/share/nginx/html
 
-# Copy custom nginx config
+# Copy custom nginx config and inject API origin into CSP
 COPY nginx/default.conf /etc/nginx/conf.d/default.conf
+RUN sed -i "s|__API_ORIGIN__|${VITE_API_URL}|g" /etc/nginx/conf.d/default.conf
 
 # Expose port
 EXPOSE 80

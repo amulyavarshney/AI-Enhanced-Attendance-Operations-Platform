@@ -1,10 +1,12 @@
 """Unit tests that do not require a live database."""
 
 import pytest
+from fastapi import HTTPException
 
 from app.ai_service import AIService
 from app.auth import create_access_token, decode_access_token, hash_password, verify_password
 from app.models import AttendanceType
+from app.rate_limit import SlidingWindowRateLimiter
 
 
 def test_password_hash_roundtrip():
@@ -43,3 +45,12 @@ def test_ai_sql_blocks_unknown_tables():
 def test_attendance_type_enum_members_are_lowercase():
     assert AttendanceType.present.value == "present"
     assert not hasattr(AttendanceType, "PRESENT")
+
+
+def test_rate_limiter_blocks_after_max():
+    limiter = SlidingWindowRateLimiter(max_requests=2, window_seconds=60)
+    limiter.check("client-a")
+    limiter.check("client-a")
+    with pytest.raises(HTTPException) as exc:
+        limiter.check("client-a")
+    assert exc.value.status_code == 429
