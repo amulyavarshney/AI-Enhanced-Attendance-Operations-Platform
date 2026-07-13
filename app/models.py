@@ -87,3 +87,16 @@ class AIInsight(Base):
     details = Column(JSONB)
     generated_at = Column(DateTime, default=datetime.utcnow)
 
+class AuditLog(Base):
+    __tablename__ = "audit_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    actor_id = Column(Integer, ForeignKey("employees.id"), nullable=True)
+    actor_email = Column(String, nullable=True)
+    method = Column(String, nullable=False)
+    path = Column(String, nullable=False)
+    status_code = Column(Integer, nullable=False)
+    action = Column(String, nullable=False)
+    details = Column(JSONB, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+

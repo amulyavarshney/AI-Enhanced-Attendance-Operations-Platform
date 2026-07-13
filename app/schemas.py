@@ -142,3 +142,17 @@ class DashboardStats(BaseModel):
     wfh_percentage: int
     absent_percentage: int
     records_today: int
+
+class AuditLog(BaseModel):
+    id: int
+    actor_id: Optional[int] = None
+    actor_email: Optional[str] = None
+    method: str
+    path: str
+    status_code: int
+    action: str
+    details: Optional[Dict[str, Any]] = None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True

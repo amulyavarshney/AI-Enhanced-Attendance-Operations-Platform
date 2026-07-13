@@ -13,6 +13,7 @@ DROP FUNCTION IF EXISTS update_timestamp_column() CASCADE;
 DROP FUNCTION IF EXISTS update_team_trends() CASCADE;
 
 -- Drop tables with foreign key references first
+DROP TABLE IF EXISTS audit_logs CASCADE;
 DROP TABLE IF EXISTS attendance CASCADE;
 DROP TABLE IF EXISTS team_trends CASCADE;
 DROP TABLE IF EXISTS ai_insights CASCADE;
@@ -96,6 +97,21 @@ CREATE TABLE ai_insights (
     generated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX idx_ai_insights_generated_at ON ai_insights(generated_at);
+
+-- Create audit_logs table
+CREATE TABLE audit_logs (
+    id SERIAL PRIMARY KEY,
+    actor_id INTEGER REFERENCES employees(id),
+    actor_email VARCHAR,
+    method VARCHAR NOT NULL,
+    path VARCHAR NOT NULL,
+    status_code INTEGER NOT NULL,
+    action VARCHAR NOT NULL,
+    details JSONB,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX idx_audit_logs_created_at ON audit_logs(created_at);
+CREATE INDEX idx_audit_logs_actor_id ON audit_logs(actor_id);
 
 -- Insert sample data for teams
 INSERT INTO teams (name) VALUES 

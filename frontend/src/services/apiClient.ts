@@ -246,6 +246,27 @@ export const dashboardApi = {
   },
 };
 
+export interface AuditLog {
+  id: number;
+  actor_id?: number | null;
+  actor_email?: string | null;
+  method: string;
+  path: string;
+  status_code: number;
+  action: string;
+  details?: Record<string, unknown> | null;
+  created_at: string;
+}
+
+export const auditApi = {
+  getAuditLogs: async (limit = 50, skip = 0): Promise<AuditLog[]> => {
+    const response = await apiClient.get<AuditLog[]>(
+      '/audit-logs' + buildQueryParams({ limit, skip })
+    );
+    return response.data;
+  },
+};
+
 export const pagedApi = {
   getEmployees: async (skip = 0, limit = 50, teamId?: number, search?: string): Promise<PaginatedResponse<Employee>> => {
     const params = { skip, limit, team_id: teamId, search };

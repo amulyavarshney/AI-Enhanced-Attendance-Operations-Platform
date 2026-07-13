@@ -946,6 +946,19 @@ async def get_insights_history(
         logger.error(f"Error retrieving AI insights: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
+@app.get("/audit-logs",
+         response_model=List[schemas.AuditLog],
+         tags=["Audit"],
+         summary="List Audit Logs",
+         description="Return recent mutating API actions. Admin only.",
+         dependencies=[Depends(require_roles("admin"))])
+async def list_audit_logs(
+    db: Session = Depends(get_db),
+    limit: int = Query(50, ge=1, le=200),
+    skip: int = Query(0, ge=0),
+):
+    return crud.get_audit_logs(db, limit=limit, skip=skip)
+
 # Admin/Developer Endpoints
 
 @app.post("/admin/reset-database", 

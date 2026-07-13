@@ -10,15 +10,13 @@ For detailed technical information, please refer to the [comprehensive documenta
 
 ## Key Features
 
-- 📱 **Complete Attendance Management**: Track employee check-ins, check-outs, and attendance statuses
-- 👥 **Team Management**: Organize employees into teams with dedicated views
-- 📊 **Comprehensive Analytics**: View attendance trends, patterns, and statistics
-- 🧠 **AI-Powered Insights**: Generate natural language insights about attendance data
-- 💬 **Natural Language Queries**: Ask questions about attendance in plain English
-- 🔄 **SQL Translation**: Natural language to SQL translation for custom queries
-- 📱 **Responsive UI**: Modern React frontend with responsive design
-- 📊 **Robust API**: FastAPI backend with proper documentation
-- 🐳 **Containerized Deployment**: Docker and Docker Compose setup
+- Complete attendance management with create/update/delete and CSV export
+- Team and employee management with role-based access (employee, manager, admin)
+- Dashboard and Analytics wired to live APIs
+- AI-powered natural language insights (Azure OpenAI) with SQL safety and circuit breaker
+- JWT authentication, request logging, rate limiting, and audit logs
+- Docker Compose deployment with health probes and Alembic migrations
+- GitHub Actions CI for backend tests and frontend build
 
 ## Architecture
 
@@ -63,7 +61,7 @@ For detailed technical information, please refer to the [comprehensive documenta
 - **UI Components**: shadcn/ui
 - **Styling**: Tailwind CSS
 - **Build Tool**: Vite
-- **State Management**: React Context API
+- **State Management**: TanStack React Query + auth context
 - **HTTP Client**: Axios
 
 ### DevOps
@@ -107,6 +105,7 @@ For detailed technical information, please refer to the [comprehensive documenta
 - `role`: Enum (employee, manager, admin)
 - `team_id`: Foreign key to Teams
 - `hire_date`: Employee hire date
+- `hashed_password`: Bcrypt password hash (nullable for legacy rows)
 - `created_at`: Creation timestamp
 - `updated_at`: Update timestamp
 
@@ -139,14 +138,43 @@ For detailed technical information, please refer to the [comprehensive documenta
 - `details`: Detailed insights (JSON)
 - `generated_at`: Generation timestamp
 
+### AuditLog
+- `id`: Primary key
+- `actor_id` / `actor_email`: Who performed the action
+- `method` / `path` / `status_code` / `action`: Request metadata
+- `details`: JSON context (request id, query string)
+- `created_at`: Timestamp
+
+## Authentication
+
+All business APIs require a JWT bearer token except health and login.
+
+1. `POST /auth/login` with `{ "email": "...", "password": "..." }`
+2. Use `Authorization: Bearer <access_token>` on subsequent requests
+3. `GET /auth/me` returns the current employee profile
+
+Seeded users share password `Admin123!` (including `admin@example.com`).
+
+Roles:
+- **admin**: full access including deletes and audit log listing
+- **manager**: manage teams/employees/attendance + AI insights
+- **employee**: read data and create/update attendance
+
 ## API Endpoints
 
 ### Health Check
 - `GET /`: Basic health check and welcome message
+- `GET /health/live`: Liveness probe
+- `GET /health/ready`: Readiness probe (database + AI circuit status)
+
+### Auth
+- `POST /auth/login`: Obtain JWT
+- `GET /auth/me`: Current user
 
 ### Teams
 - `POST /teams`: Create a new team
 - `GET /teams`: Get all teams
+- `GET /teams/page`: Paginated teams
 - `GET /teams/{team_id}`: Get a specific team
 - `PUT /teams/{team_id}`: Update a team
 - `DELETE /teams/{team_id}`: Delete a team
@@ -157,6 +185,7 @@ For detailed technical information, please refer to the [comprehensive documenta
 ### Employees
 - `POST /employees`: Create a new employee
 - `GET /employees`: Get all employees
+- `GET /employees/page`: Paginated employees
 - `GET /employees/{employee_id}`: Get a specific employee
 - `PUT /employees/{employee_id}`: Update an employee
 - `DELETE /employees/{employee_id}`: Delete an employee
@@ -165,16 +194,26 @@ For detailed technical information, please refer to the [comprehensive documenta
 ### Attendance
 - `POST /attendance`: Create a new attendance record
 - `GET /attendance`: Get all attendance records
+- `GET /attendance/page`: Paginated attendance
+- `GET /attendance/export`: Download attendance CSV
 - `GET /attendance/{attendance_id}`: Get a specific attendance record
 - `PUT /attendance/{attendance_id}`: Update an attendance record
+- `DELETE /attendance/{attendance_id}`: Delete an attendance record
+
+### Dashboard
+- `GET /dashboard/stats`: Today’s org/attendance summary
+- `GET /dashboard/trends`: Team trends for a date range
 
 ### AI Insights
-- `GET /ai/insights`: Get AI-generated insights
-- `GET /ai/sql-insights`: Get SQL-based AI insights
+- `GET /ai/insights`: Get AI-generated insights (rate limited)
+- `GET /ai/sql-insights`: Get SQL-based AI insights (rate limited)
 - `GET /ai/insights/history`: Get past AI insights
 
+### Audit
+- `GET /audit-logs`: List mutating API audit events (admin only)
+
 ### Admin
-- `POST /admin/reset-database`: Reset the database (development/testing only)
+- `POST /admin/reset-database`: Reset the database (disabled when `APP_ENV=production`)
 
 ## AI Capabilities
 
@@ -193,12 +232,13 @@ If SQL translation fails, the system falls back to pattern-based analysis using 
 
 ## Frontend Pages
 
-- **Dashboard**: Overview of key metrics and recent activities
+- **Login**: JWT sign-in
+- **Dashboard**: Live overview metrics and charts
 - **Teams**: Team management and team-level analytics
-- **Employees**: Employee management and individual stats
-- **Attendance**: Daily attendance tracking and management
-- **Analytics**: Detailed attendance analytics and trends
-- **AI Insights**: Natural language query interface for attendance data
+- **Employees**: Employee management
+- **Attendance**: Daily attendance tracking
+- **Analytics**: Trends plus CSV export
+- **AI Insights**: Natural language query interface
 
 ## Prerequisites
 
@@ -229,8 +269,10 @@ docker-compose up --build
 
 The application will be available at:
 - Backend API: `http://localhost:8000`
-- Frontend: `http://localhost:3000`
+- Frontend: `http://localhost:3000` (Docker) or `http://localhost:8080` (Vite dev)
 - API Documentation: `http://localhost:8000/docs`
+
+Default admin login: `admin@example.com` / `Admin123!`
 
 ## Docker Configuration
 

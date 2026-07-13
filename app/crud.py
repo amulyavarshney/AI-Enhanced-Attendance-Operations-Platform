@@ -548,3 +548,44 @@ def get_dashboard_stats(db: Session) -> Dict[str, Any]:
         "absent_percentage": round(((absent_count + leave_count) / total_employees) * 100) if total_employees else 0,
         "records_today": recorded,
     }
+
+
+def create_audit_log(
+    db: Session,
+    *,
+    method: str,
+    path: str,
+    status_code: int,
+    action: str,
+    actor_id: Optional[int] = None,
+    actor_email: Optional[str] = None,
+    details: Optional[Dict[str, Any]] = None,
+) -> models.AuditLog:
+    entry = models.AuditLog(
+        actor_id=actor_id,
+        actor_email=actor_email,
+        method=method,
+        path=path,
+        status_code=status_code,
+        action=action,
+        details=details or {},
+    )
+    db.add(entry)
+    try:
+        db.commit()
+        db.refresh(entry)
+        return entry
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Error saving audit log: {e}")
+        raise
+
+
+def get_audit_logs(db: Session, limit: int = 50, skip: int = 0) -> List[models.AuditLog]:
+    return (
+        db.query(models.AuditLog)
+        .order_by(models.AuditLog.created_at.desc())
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
