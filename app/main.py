@@ -1,10 +1,14 @@
 from fastapi import FastAPI, Depends, HTTPException, Query, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
+from sqlalchemy import text
 from typing import List, Optional
 import logging
 from datetime import datetime, date
 import os
+import csv
+import io
 
 from .database import get_db, engine, Base
 from . import models, schemas, crud
@@ -91,15 +95,6 @@ async def root():
     Health check endpoint.
     
     Returns a welcome message and basic information about the API.
-
-    Returns:
-    - Welcome message
-    - API version
-    - Status
-    - Timestamp
-    
-    Raises:
-    - 500: Internal server error
     """
     try:
         return {
@@ -111,6 +106,30 @@ async def root():
     except Exception as e:
         logger.error(f"Error in health check: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+@app.get("/health/live", tags=["Health Check"], summary="Liveness probe")
+async def health_live():
+    return {"status": "alive"}
+
+@app.get("/health/ready", tags=["Health Check"], summary="Readiness probe")
+async def health_ready(db: Session = Depends(get_db)):
+    try:
+        db.execute(text("SELECT 1"))
+        db_status = "ok"
+    except Exception as e:
+        logger.error(f"Readiness DB check failed: {e}")
+        raise HTTPException(status_code=503, detail={"status": "not_ready", "database": "error"})
+
+    ai_status = "unavailable"
+    if ai_service.client:
+        ai_status = ai_service.circuit_breaker.status()
+
+    return {
+        "status": "ready",
+        "database": db_status,
+        "ai": ai_status,
+        "timestamp": datetime.utcnow().isoformat(),
+    }
 
 # Auth Endpoints
 @app.post("/auth/login",
@@ -653,6 +672,49 @@ async def get_attendance_page(
         status=status,
     )
     return schemas.PaginatedAttendance(items=items, total=total, skip=skip, limit=limit)
+
+@app.get("/attendance/export",
+         tags=["Attendance"],
+         summary="Export Attendance CSV",
+         description="Download attendance records as CSV for a date range.",
+         dependencies=[Depends(get_current_user)])
+async def export_attendance_csv(
+    db: Session = Depends(get_db),
+    start_date: Optional[date] = Query(None),
+    end_date: Optional[date] = Query(None),
+    employee_id: Optional[int] = Query(None),
+):
+    records = crud.get_attendance_by_date(db, start_date, end_date)
+    if employee_id is not None:
+        records = [r for r in records if r.employee_id == employee_id]
+
+    buffer = io.StringIO()
+    writer = csv.writer(buffer)
+    writer.writerow([
+        "id", "employee_id", "date", "status", "check_in", "check_out", "notes",
+        "created_at", "updated_at",
+    ])
+    for record in records:
+        status = record.status.value if hasattr(record.status, "value") else record.status
+        writer.writerow([
+            record.id,
+            record.employee_id,
+            record.date.isoformat() if record.date else "",
+            status,
+            record.check_in.isoformat() if record.check_in else "",
+            record.check_out.isoformat() if record.check_out else "",
+            record.notes or "",
+            record.created_at.isoformat() if record.created_at else "",
+            record.updated_at.isoformat() if record.updated_at else "",
+        ])
+
+    buffer.seek(0)
+    filename = f"attendance_export_{date.today().isoformat()}.csv"
+    return StreamingResponse(
+        iter([buffer.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 @app.get("/dashboard/stats",
          response_model=schemas.DashboardStats,

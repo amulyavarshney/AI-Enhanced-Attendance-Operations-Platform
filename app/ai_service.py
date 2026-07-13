@@ -7,6 +7,7 @@ import logging
 from openai import AzureOpenAI
 from typing import Dict, Any, List, Tuple, Optional
 from . import crud, models, schemas
+from .circuit_breaker import CircuitBreaker
 
 """
 AI Service for Attendance Management System
@@ -154,6 +155,10 @@ class AIService:
     
     def __init__(self):
         """Initialize the Azure OpenAI client."""
+        self.circuit_breaker = CircuitBreaker(
+            failure_threshold=int(os.getenv("AI_CIRCUIT_FAILURE_THRESHOLD", "3")),
+            recovery_timeout_seconds=int(os.getenv("AI_CIRCUIT_RECOVERY_SECONDS", "60")),
+        )
         try:
             self.client = AzureOpenAI(
                 api_key=os.getenv("AZURE_OPENAI_API_KEY"),
@@ -171,13 +176,6 @@ class AIService:
         This method uses a two-tiered approach:
         1. First attempts to convert the query to SQL and analyze the results (preferred)
         2. Falls back to pattern-based analysis if SQL approach fails
-        
-        Args:
-            query: Natural language query about attendance data
-            db: Database session
-            
-        Returns:
-            AIInsight object containing the query, summary, and details
         """
         if not self.client:
             return self._create_error_insight(
@@ -185,6 +183,17 @@ class AIService:
                 "AI insights are currently unavailable. Please try again later.",
                 {"error": "Azure OpenAI client not initialized"}
             )
+
+        if not self.circuit_breaker.allow_request():
+            logger.warning("AI circuit breaker is open; skipping OpenAI and using pattern fallback")
+            try:
+                return await self._generate_pattern_based_insight(query, db)
+            except Exception:
+                return self._create_error_insight(
+                    query,
+                    "AI provider is temporarily unavailable. Please try again shortly.",
+                    {"error": "circuit_breaker_open", "circuit": self.circuit_breaker.status()},
+                )
             
         try:
             # First try using the SQL-based approach
@@ -526,17 +535,10 @@ class AIService:
 
     def _call_openai(self, system_content: str, user_content: str, 
                     temperature: float = 0.7, max_tokens: int = None) -> str:
-        """Call Azure OpenAI API with the given content.
-        
-        Args:
-            system_content: System message content
-            user_content: User message content
-            temperature: Temperature parameter for OpenAI
-            max_tokens: Maximum tokens parameter for OpenAI
-            
-        Returns:
-            Response content string
-        """
+        """Call Azure OpenAI API with the given content."""
+        if not self.circuit_breaker.allow_request():
+            raise RuntimeError("AI circuit breaker is open")
+
         params = {
             "model": os.getenv("AZURE_OPENAI_MODEL"),
             "messages": [
@@ -548,9 +550,14 @@ class AIService:
         
         if max_tokens:
             params["max_tokens"] = max_tokens
-            
-        response = self.client.chat.completions.create(**params)
-        return response.choices[0].message.content.strip()
+
+        try:
+            response = self.client.chat.completions.create(**params)
+            self.circuit_breaker.record_success()
+            return response.choices[0].message.content.strip()
+        except Exception:
+            self.circuit_breaker.record_failure()
+            raise
 
     def _create_sql_insight(self, query: str, summary: str, sql: str, 
                           data: List[Dict[str, Any]]) -> schemas.AIInsightCreate:

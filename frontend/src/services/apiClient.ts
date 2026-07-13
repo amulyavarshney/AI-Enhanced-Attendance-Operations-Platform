@@ -184,6 +184,14 @@ export const attendanceApi = {
   deleteAttendance: async (id: number): Promise<void> => {
     await apiClient.delete(`/attendance/${id}`);
   },
+
+  exportCsv: async (startDate?: string, endDate?: string, employeeId?: number): Promise<Blob> => {
+    const params = { start_date: startDate, end_date: endDate, employee_id: employeeId };
+    const response = await apiClient.get('/attendance/export' + buildQueryParams(params), {
+      responseType: 'blob',
+    });
+    return response.data;
+  },
 };
 
 // AI Insights API

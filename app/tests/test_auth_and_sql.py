@@ -7,6 +7,7 @@ from app.ai_service import AIService
 from app.auth import create_access_token, decode_access_token, hash_password, verify_password
 from app.models import AttendanceType
 from app.rate_limit import SlidingWindowRateLimiter
+from app.circuit_breaker import CircuitBreaker
 
 
 def test_password_hash_roundtrip():
@@ -54,3 +55,15 @@ def test_rate_limiter_blocks_after_max():
     with pytest.raises(HTTPException) as exc:
         limiter.check("client-a")
     assert exc.value.status_code == 429
+
+
+def test_circuit_breaker_opens_after_failures():
+    breaker = CircuitBreaker(failure_threshold=2, recovery_timeout_seconds=60)
+    assert breaker.allow_request()
+    breaker.record_failure()
+    assert breaker.allow_request()
+    breaker.record_failure()
+    assert breaker.is_open
+    assert not breaker.allow_request()
+    breaker.record_success()
+    assert breaker.allow_request()

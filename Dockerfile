@@ -48,7 +48,7 @@ USER appuser
 
 # Health check — use Python stdlib so curl is not required in the image
 HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
-    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/')" || exit 1
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health/live')" || exit 1
 
 # Expose the port
 EXPOSE 8000

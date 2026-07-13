@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { BarChart3, CalendarRange, PieChart, TrendingUp, Users } from "lucide-react";
+import { BarChart3, CalendarRange, PieChart, TrendingUp, Users, Download } from "lucide-react";
+
 import {
   Card,
   CardContent,
@@ -16,6 +17,7 @@ import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { Button } from "@/components/ui/button";
 import { DateRange } from "react-day-picker";
 import { format } from "date-fns";
+import { useToast } from "@/hooks/use-toast";
 
 import {
   AreaChart,
@@ -36,7 +38,9 @@ import {
 } from "recharts";
 
 const Analytics: React.FC = () => {
+  const { toast } = useToast();
   const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
   const [teams, setTeams] = useState<Team[]>([]);
   const [attendance, setAttendance] = useState<Attendance[]>([]);
   const [teamTrends, setTeamTrends] = useState<TeamTrends[]>([]);
@@ -161,6 +165,32 @@ const Analytics: React.FC = () => {
   const applyCustomDateRange = () => {
     // This will trigger the useEffect hook to fetch new data
     setSelectedPeriod("custom");
+  };
+
+  const handleExportCsv = async () => {
+    setExporting(true);
+    try {
+      const startDateStr = format(startDate, "yyyy-MM-dd");
+      const endDateStr = format(endDate, "yyyy-MM-dd");
+      const blob = await attendanceApi.exportCsv(startDateStr, endDateStr);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `attendance_${startDateStr}_to_${endDateStr}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      toast({ title: "Export ready", description: "Attendance CSV downloaded." });
+    } catch {
+      toast({
+        title: "Export failed",
+        description: "Could not download attendance CSV.",
+        variant: "destructive",
+      });
+    } finally {
+      setExporting(false);
+    }
   };
   
   // Prepare data for attendance status pie chart
@@ -313,6 +343,10 @@ const Analytics: React.FC = () => {
               </Button>
             </div>
           )}
+          <Button onClick={handleExportCsv} variant="outline" size="sm" disabled={exporting}>
+            <Download className="h-4 w-4 mr-2" />
+            {exporting ? "Exporting..." : "Export CSV"}
+          </Button>
         </div>
       </div>
       
