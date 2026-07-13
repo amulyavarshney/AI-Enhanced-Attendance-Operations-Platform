@@ -959,6 +959,33 @@ async def list_audit_logs(
 ):
     return crud.get_audit_logs(db, limit=limit, skip=skip)
 
+@app.get("/notifications",
+         response_model=List[schemas.NotificationItem],
+         tags=["Notifications"],
+         summary="List Notifications",
+         description="Return recent activity notifications derived from audit events.")
+async def list_notifications(
+    db: Session = Depends(get_db),
+    current_user: models.Employee = Depends(get_current_user),
+    limit: int = Query(20, ge=1, le=100),
+):
+    role = current_user.role.value if hasattr(current_user.role, "value") else str(current_user.role)
+    if role in ("admin", "manager"):
+        logs = crud.get_audit_logs_for_actor(db, actor_id=None, limit=limit)
+    else:
+        logs = crud.get_audit_logs_for_actor(db, actor_id=current_user.id, limit=limit)
+
+    return [
+        schemas.NotificationItem(
+            id=log.id,
+            title=log.action,
+            message=f"{log.method} {log.path} completed with status {log.status_code}",
+            created_at=log.created_at,
+            source="audit",
+        )
+        for log in logs
+    ]
+
 # Admin/Developer Endpoints
 
 @app.post("/admin/reset-database", 

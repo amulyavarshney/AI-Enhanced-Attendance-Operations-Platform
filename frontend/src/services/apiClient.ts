@@ -267,6 +267,23 @@ export const auditApi = {
   },
 };
 
+export interface NotificationItem {
+  id: number;
+  title: string;
+  message: string;
+  created_at: string;
+  source: string;
+}
+
+export const notificationApi = {
+  getNotifications: async (limit = 20): Promise<NotificationItem[]> => {
+    const response = await apiClient.get<NotificationItem[]>(
+      '/notifications' + buildQueryParams({ limit })
+    );
+    return response.data;
+  },
+};
+
 export const pagedApi = {
   getEmployees: async (skip = 0, limit = 50, teamId?: number, search?: string): Promise<PaginatedResponse<Employee>> => {
     const params = { skip, limit, team_id: teamId, search };

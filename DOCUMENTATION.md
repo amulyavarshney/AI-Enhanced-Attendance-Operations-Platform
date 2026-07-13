@@ -2,9 +2,19 @@
 
 ## 1. Executive Summary
 
-The AI-Enhanced Attendance Operations Platform is a comprehensive solution for managing employee attendance with integrated AI-powered analytics. The platform combines a FastAPI backend with a React frontend to provide a modern, responsive, and intelligent attendance management system.
+The AI-Enhanced Attendance Operations Platform is a full-stack attendance system with JWT auth, RBAC, live dashboard/analytics, AI insights (Azure OpenAI), audit logging, and Docker-based deployment.
 
-This document provides detailed technical information about the platform's architecture, features, implementation, and deployment processes.
+This document describes the current production-oriented architecture and operating model. Prefer [README.md](README.md) for quick start and endpoint lists.
+
+### Production readiness highlights
+
+- JWT authentication + role-based access (`employee` / `manager` / `admin`)
+- AI SQL allowlisting, rate limits, and circuit breaker
+- Request logging (`X-Request-ID`) and mutating-API audit trail
+- Health probes: `/health/live`, `/health/ready`
+- Alembic migrations (`0001_initial`, `0002_audit_logs`)
+- CSV export, notifications feed, admin audit UI
+- GitHub Actions CI (pytest + frontend build)
 
 ## 2. System Architecture
 
@@ -28,34 +38,84 @@ This document provides detailed technical information about the platform's archi
 ### 2.2 Component Overview
 
 1. **Frontend Client (React/TypeScript)**
-   - Responsive web interface built with React
-   - TypeScript for type safety
-   - shadcn/ui components with Tailwind CSS
-   - Client-side routing with React Router
-   - State management with React Context API
+   - Vite + React Router + TanStack Query
+   - Auth context with bearer token storage
+   - Pages: Login, Dashboard, Employees, Attendance, Teams, Analytics, AI Insights, Audit Logs
+   - shadcn/ui + Tailwind CSS
 
 2. **Backend API (FastAPI)**
-   - RESTful API endpoints for all CRUD operations
-   - SQLAlchemy ORM for database interactions
-   - Pydantic schemas for data validation
-   - Authentication and authorization
-   - OpenAPI documentation (Swagger UI)
+   - CRUD + dashboard/analytics endpoints
+   - JWT auth (`/auth/login`, `/auth/me`) and RBAC dependencies
+   - AI insights with SQL safety + circuit breaker
+   - Audit middleware for successful mutating requests
+   - Notifications derived from audit events
+   - OpenAPI docs at `/docs`
 
 3. **Database (PostgreSQL)**
-   - Relational database for persistent storage
-   - Tables for teams, employees, attendance records
-   - Alembic for database migrations
+   - Tables: teams, employees, attendance, team_trends, ai_insights, audit_logs
+   - Seed SQL in `scripts/schema.sql` (Docker first boot)
+   - Alembic for schema evolution
 
 4. **AI Service (Azure OpenAI)**
-   - Natural language query processing
-   - SQL query generation from natural language
-   - Pattern recognition in attendance data
-   - Fallback patterns for error handling
+   - NL → SQL → summarize path with pattern fallback
+   - SELECT-only validation, row limits, statement timeout
+   - Circuit breaker on provider failures
 
 5. **Containerization (Docker)**
-   - Multi-stage builds for optimized images
-   - Docker Compose for service orchestration
-   - Volume mounts for development
+   - Compose services: `api`, `frontend`, `db`
+   - Frontend CSP injected from `VITE_API_URL` at build time
+
+## 3. Authentication & Authorization
+
+1. Obtain token: `POST /auth/login`
+2. Send `Authorization: Bearer <token>`
+3. Roles:
+   - **admin**: deletes, audit logs page/API
+   - **manager**: team/employee mutations + AI
+   - **employee**: read + attendance create/update
+
+Seeded password for demo users: `Admin123!`  
+Admin: `admin@example.com`
+
+## 4. Security Controls
+
+- CORS restricted via `CORS_ORIGINS` (stricter in production)
+- Admin DB reset disabled when `APP_ENV=production`
+- AI endpoints rate-limited (`AI_RATE_LIMIT_*`)
+- Duplicate employee email returns HTTP 409
+- Nginx CSP includes build-time API origin
+
+## 5. Operations
+
+### Health
+
+- `GET /health/live` — process liveness
+- `GET /health/ready` — DB connectivity + AI circuit status
+
+### Migrations
+
+```bash
+alembic upgrade head
+```
+
+### Tests / CI
+
+```bash
+pytest app/tests -q
+```
+
+GitHub Actions workflow: `.github/workflows/ci.yml`
+
+### Useful endpoints
+
+- `GET /dashboard/stats`, `GET /dashboard/trends`
+- `GET /attendance/export`
+- `GET /notifications`
+- `GET /audit-logs` (admin)
+
+---
+
+The remainder of this file retains historical deep-dive notes. Where it conflicts with the sections above or README.md, treat the newer sections as source of truth.
 
 ## 3. Database Schema
 

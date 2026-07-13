@@ -156,3 +156,10 @@ class AuditLog(BaseModel):
 
     class Config:
         from_attributes = True
+
+class NotificationItem(BaseModel):
+    id: int
+    title: str
+    message: str
+    created_at: datetime
+    source: str = "audit"

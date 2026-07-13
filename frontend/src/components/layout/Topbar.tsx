@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Users, Building, CheckCircle2, HomeIcon, Trophy, User, LogOut } from "lucide-react";
+import { Users, Building, CheckCircle2, HomeIcon, Trophy, User, LogOut, Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -10,7 +10,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { employeeApi, teamApi, attendanceApi } from "@/services/apiClient";
+import { employeeApi, teamApi, attendanceApi, notificationApi, NotificationItem } from "@/services/apiClient";
 import { format } from "date-fns";
 import { useAuth } from "@/context/AuthContext";
 
@@ -26,6 +26,7 @@ interface InsightsData {
 const Topbar: React.FC = () => {
   const { employee, logout } = useAuth();
   const navigate = useNavigate();
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [insights, setInsights] = useState<InsightsData>({
     totalUsers: 0,
     totalTeams: 0,
@@ -43,11 +44,14 @@ const Topbar: React.FC = () => {
         const startDate = format(firstDayOfMonth, "yyyy-MM-dd");
         const endDate = format(today, "yyyy-MM-dd");
 
-        const [employees, teams, attendanceData] = await Promise.all([
+        const [employees, teams, attendanceData, recentNotifications] = await Promise.all([
           employeeApi.getEmployees(),
           teamApi.getTeams(),
-          attendanceApi.getAttendance(startDate, endDate)
+          attendanceApi.getAttendance(startDate, endDate),
+          notificationApi.getNotifications(8).catch(() => [] as NotificationItem[]),
         ]);
+
+        setNotifications(recentNotifications);
 
         const totalRecords = attendanceData.length || 1;
         const presentCount = attendanceData.filter(record => record.status === "present").length;
@@ -143,6 +147,35 @@ const Topbar: React.FC = () => {
       </div>
 
       <div className="flex items-center space-x-4">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" className="relative">
+              <Bell size={18} />
+              {notifications.length > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 h-4 min-w-4 rounded-full bg-primary px-1 text-[10px] text-primary-foreground flex items-center justify-center">
+                  {notifications.length}
+                </span>
+              )}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-80">
+            <DropdownMenuLabel>Recent activity</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            {notifications.length === 0 && (
+              <DropdownMenuItem disabled>No recent notifications</DropdownMenuItem>
+            )}
+            {notifications.map((item) => (
+              <DropdownMenuItem key={item.id} className="flex flex-col items-start gap-1 py-2">
+                <span className="text-sm font-medium">{item.title}</span>
+                <span className="text-xs text-muted-foreground">{item.message}</span>
+                <span className="text-[10px] text-muted-foreground">
+                  {item.created_at ? format(new Date(item.created_at), "MMM d, HH:mm") : ""}
+                </span>
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button

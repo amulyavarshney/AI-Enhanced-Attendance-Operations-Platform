@@ -589,3 +589,15 @@ def get_audit_logs(db: Session, limit: int = 50, skip: int = 0) -> List[models.A
         .limit(limit)
         .all()
     )
+
+
+def get_audit_logs_for_actor(
+    db: Session,
+    *,
+    actor_id: Optional[int] = None,
+    limit: int = 20,
+) -> List[models.AuditLog]:
+    query = db.query(models.AuditLog)
+    if actor_id is not None:
+        query = query.filter(models.AuditLog.actor_id == actor_id)
+    return query.order_by(models.AuditLog.created_at.desc()).limit(limit).all()

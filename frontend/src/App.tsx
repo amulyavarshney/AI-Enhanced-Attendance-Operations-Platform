@@ -12,6 +12,7 @@ import AttendancePage from "./pages/Attendance";
 import Teams from "./pages/Teams";
 import Analytics from "./pages/Analytics";
 import AIInsights from "./pages/AIInsights";
+import AuditLogs from "./pages/AuditLogs";
 import Login from "./pages/Login";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 
@@ -42,6 +43,7 @@ const AppRoutes = () => (
       <Route path="teams" element={<Teams />} />
       <Route path="analytics" element={<Analytics />} />
       <Route path="ai-insights" element={<AIInsights />} />
+      <Route path="audit-logs" element={<AuditLogs />} />
     </Route>
     <Route path="*" element={<NotFound />} />
   </Routes>

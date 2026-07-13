@@ -8,13 +8,17 @@ import {
   Briefcase, 
   BarChart3, 
   MessageSquare,
-  Menu
+  Menu,
+  Shield
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/context/AuthContext";
 
 const Sidebar: React.FC = () => {
   const [collapsed, setCollapsed] = React.useState(false);
+  const { employee } = useAuth();
+  const isAdmin = employee?.role === "admin";
 
   const toggleSidebar = () => {
     setCollapsed(!collapsed);
@@ -79,6 +83,14 @@ const Sidebar: React.FC = () => {
             label="AI Insights" 
             collapsed={collapsed} 
           />
+          {isAdmin && (
+            <NavItem 
+              to="/audit-logs" 
+              icon={<Shield size={20} />} 
+              label="Audit Logs" 
+              collapsed={collapsed} 
+            />
+          )}
         </ul>
       </nav>
       
