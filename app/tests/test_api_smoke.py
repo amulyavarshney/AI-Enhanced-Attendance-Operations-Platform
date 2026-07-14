@@ -34,6 +34,16 @@ def test_notifications_require_auth():
     assert response.status_code == 401
 
 
+def test_refresh_requires_body():
+    response = client.post("/auth/refresh", json={})
+    assert response.status_code == 422
+
+
+def test_logout_requires_body():
+    response = client.post("/auth/logout", json={})
+    assert response.status_code == 422
+
+
 def test_audit_logs_require_auth():
     response = client.get("/audit-logs")
     assert response.status_code == 401

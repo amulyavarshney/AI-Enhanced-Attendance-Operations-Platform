@@ -665,3 +665,19 @@ def get_audit_logs_for_actor(
     if actor_id is not None:
         query = query.filter(models.AuditLog.actor_id == actor_id)
     return query.order_by(models.AuditLog.created_at.desc()).limit(limit).all()
+
+
+def get_audit_logs_for_team(
+    db: Session,
+    *,
+    team_id: int,
+    limit: int = 20,
+) -> List[models.AuditLog]:
+    return (
+        db.query(models.AuditLog)
+        .join(models.Employee, models.AuditLog.actor_id == models.Employee.id)
+        .filter(models.Employee.team_id == team_id)
+        .order_by(models.AuditLog.created_at.desc())
+        .limit(limit)
+        .all()
+    )

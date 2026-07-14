@@ -24,7 +24,10 @@ from .auth import (
     create_access_token,
     get_current_user,
     hash_password,
+    issue_refresh_token,
     require_roles,
+    revoke_refresh_token,
+    rotate_refresh_token,
     verify_password,
     warn_if_insecure_defaults,
 )
@@ -144,7 +147,7 @@ async def health_ready(db: Session = Depends(get_db)):
           response_model=schemas.TokenResponse,
           tags=["Auth"],
           summary="Login",
-          description="Authenticate with email and password to receive a JWT access token.")
+          description="Authenticate with email and password to receive access and refresh tokens.")
 async def login(credentials: schemas.LoginRequest, db: Session = Depends(get_db)):
     employee = authenticate_employee(db, credentials.email, credentials.password)
     if not employee:
@@ -152,10 +155,33 @@ async def login(credentials: schemas.LoginRequest, db: Session = Depends(get_db)
 
     role = employee.role.value if hasattr(employee.role, "value") else str(employee.role)
     token = create_access_token(employee_id=employee.id, email=employee.email, role=role)
+    refresh = issue_refresh_token(db, employee_id=employee.id)
     return schemas.TokenResponse(
         access_token=token,
+        refresh_token=refresh,
         employee=schemas.Employee.model_validate(employee),
     )
+
+@app.post("/auth/refresh",
+          response_model=schemas.RefreshResponse,
+          tags=["Auth"],
+          summary="Refresh Tokens",
+          description="Exchange a refresh token for a new access/refresh pair (rotation).")
+async def refresh_tokens(payload: schemas.RefreshRequest, db: Session = Depends(get_db)):
+    access, refresh, employee = rotate_refresh_token(db, payload.refresh_token)
+    return schemas.RefreshResponse(
+        access_token=access,
+        refresh_token=refresh,
+        employee=schemas.Employee.model_validate(employee),
+    )
+
+@app.post("/auth/logout",
+          tags=["Auth"],
+          summary="Logout",
+          description="Revoke the refresh-token family for the current session.")
+async def logout(payload: schemas.RefreshRequest, db: Session = Depends(get_db)):
+    revoke_refresh_token(db, payload.refresh_token)
+    return {"message": "Logged out"}
 
 @app.get("/auth/me",
          response_model=schemas.AuthMeResponse,
@@ -1045,9 +1071,11 @@ async def list_notifications(
     current_user: models.Employee = Depends(get_current_user),
     limit: int = Query(20, ge=1, le=100),
 ):
-    role = current_user.role.value if hasattr(current_user.role, "value") else str(current_user.role)
-    if role in ("admin", "manager"):
+    scope = resolve_scope(current_user)
+    if scope.is_admin:
         logs = crud.get_audit_logs_for_actor(db, actor_id=None, limit=limit)
+    elif scope.team_id is not None:
+        logs = crud.get_audit_logs_for_team(db, team_id=scope.team_id, limit=limit)
     else:
         logs = crud.get_audit_logs_for_actor(db, actor_id=current_user.id, limit=limit)
 

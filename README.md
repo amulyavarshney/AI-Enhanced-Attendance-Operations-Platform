@@ -153,7 +153,8 @@ All business APIs require a JWT bearer token except health and login.
 2. Use `Authorization: Bearer <access_token>` on subsequent requests
 3. `GET /auth/me` returns the current employee profile
 4. `POST /auth/change-password` updates the signed-in user's password
-5. Expired/invalid tokens clear the session and redirect to `/login?reason=expired`
+5. `POST /auth/refresh` rotates refresh tokens; `POST /auth/logout` revokes the family
+6. Expired/invalid tokens clear the session and redirect to `/login?reason=expired`
 
 Seeded users share password `Admin123!` (including `admin@example.com`).
 
@@ -173,7 +174,9 @@ Read APIs apply the same row-level scope as the signed-in role.
 - `GET /health/ready`: Readiness probe (database + AI circuit status)
 
 ### Auth
-- `POST /auth/login`: Obtain JWT
+- `POST /auth/login`: Obtain access + refresh tokens
+- `POST /auth/refresh`: Rotate refresh token and issue a new access token
+- `POST /auth/logout`: Revoke refresh-token family
 - `GET /auth/me`: Current user
 - `POST /auth/change-password`: Change own password
 

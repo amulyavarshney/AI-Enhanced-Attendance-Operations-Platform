@@ -17,7 +17,7 @@ import { useAuth } from "@/context/AuthContext";
 
 const Sidebar: React.FC = () => {
   const [collapsed, setCollapsed] = React.useState(false);
-  const { isAdmin, canUseAI } = useAuth();
+  const { isAdmin, canUseAI, canManage } = useAuth();
 
   const toggleSidebar = () => {
     setCollapsed(!collapsed);
@@ -70,12 +70,14 @@ const Sidebar: React.FC = () => {
             label="Teams" 
             collapsed={collapsed} 
           />
+          {canManage && (
           <NavItem 
             to="/analytics" 
             icon={<BarChart3 size={20} />} 
             label="Analytics" 
             collapsed={collapsed} 
           />
+          )}
           {canUseAI && (
             <NavItem 
               to="/ai-insights" 

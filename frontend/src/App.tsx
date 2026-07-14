@@ -52,7 +52,11 @@ const AppRoutes = () => (
       <Route path="employees" element={<Employees />} />
       <Route path="attendance" element={<AttendancePage />} />
       <Route path="teams" element={<Teams />} />
-      <Route path="analytics" element={<Analytics />} />
+      <Route path="analytics" element={
+        <RoleRoute allow={(auth) => auth.canManage}>
+          <Analytics />
+        </RoleRoute>
+      } />
       <Route
         path="ai-insights"
         element={

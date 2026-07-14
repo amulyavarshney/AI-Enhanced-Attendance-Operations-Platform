@@ -110,3 +110,15 @@ class AuditLog(Base):
     created_at = Column(DateTime, default=utc_now)
 
 
+class RefreshToken(Base):
+    __tablename__ = "refresh_tokens"
+
+    id = Column(Integer, primary_key=True, index=True)
+    employee_id = Column(Integer, ForeignKey("employees.id"), nullable=False, index=True)
+    token_hash = Column(String, unique=True, nullable=False, index=True)
+    family_id = Column(String, nullable=False, index=True)
+    expires_at = Column(DateTime, nullable=False)
+    revoked = Column(Integer, default=0, nullable=False)  # 0 active, 1 revoked
+    created_at = Column(DateTime, default=utc_now)
+
+

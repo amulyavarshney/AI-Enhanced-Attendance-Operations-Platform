@@ -1,4 +1,4 @@
-import axios from 'axios';
+import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 import { 
   Employee, 
   Team, 
@@ -7,16 +7,24 @@ import {
   TeamTrends,
 } from '@/types/models';
 
+
 const TOKEN_STORAGE_KEY = 'attendance_auth_token';
+const REFRESH_STORAGE_KEY = 'attendance_auth_refresh';
 
 export const getAuthToken = (): string | null => localStorage.getItem(TOKEN_STORAGE_KEY);
+export const getRefreshToken = (): string | null => localStorage.getItem(REFRESH_STORAGE_KEY);
 
 export const setAuthToken = (token: string): void => {
   localStorage.setItem(TOKEN_STORAGE_KEY, token);
 };
 
+export const setRefreshToken = (token: string): void => {
+  localStorage.setItem(REFRESH_STORAGE_KEY, token);
+};
+
 export const clearAuthToken = (): void => {
   localStorage.removeItem(TOKEN_STORAGE_KEY);
+  localStorage.removeItem(REFRESH_STORAGE_KEY);
 };
 
 // Configure axios instance
@@ -35,21 +43,61 @@ apiClient.interceptors.request.use((config) => {
   return config;
 });
 
+let refreshPromise: Promise<string | null> | null = null;
+
+async function refreshAccessToken(): Promise<string | null> {
+  const refresh = getRefreshToken();
+  if (!refresh) return null;
+  try {
+    const response = await axios.post<RefreshResponse>(
+      `${import.meta.env.VITE_API_URL}/auth/refresh`,
+      { refresh_token: refresh },
+      { headers: { 'Content-Type': 'application/json' } }
+    );
+    setAuthToken(response.data.access_token);
+    setRefreshToken(response.data.refresh_token);
+    localStorage.setItem('attendance_auth_employee', JSON.stringify(response.data.employee));
+    return response.data.access_token;
+  } catch {
+    return null;
+  }
+}
+
+function forceLoginRedirect(hadToken: boolean) {
+  clearAuthToken();
+  localStorage.removeItem('attendance_auth_employee');
+  if (window.location.pathname !== '/login') {
+    const suffix = hadToken ? '?reason=expired' : '';
+    window.location.assign(`/login${suffix}`);
+  }
+}
+
 apiClient.interceptors.response.use(
   (response) => response,
-  (error) => {
+  async (error: AxiosError) => {
     const status = error.response?.status;
-    const requestUrl = String(error.config?.url ?? "");
-    const isLoginRequest = requestUrl.includes("/auth/login");
+    const original = error.config as (InternalAxiosRequestConfig & { _retry?: boolean }) | undefined;
+    const requestUrl = String(original?.url ?? '');
+    const isAuthEndpoint =
+      requestUrl.includes('/auth/login') ||
+      requestUrl.includes('/auth/refresh') ||
+      requestUrl.includes('/auth/logout');
 
-    if (status === 401 && !isLoginRequest) {
-      const hadToken = Boolean(getAuthToken());
-      clearAuthToken();
-      localStorage.removeItem("attendance_auth_employee");
-      if (window.location.pathname !== "/login") {
-        const suffix = hadToken ? "?reason=expired" : "";
-        window.location.assign(`/login${suffix}`);
+    if (status === 401 && original && !original._retry && !isAuthEndpoint) {
+      original._retry = true;
+      if (!refreshPromise) {
+        refreshPromise = refreshAccessToken().finally(() => {
+          refreshPromise = null;
+        });
       }
+      const newToken = await refreshPromise;
+      if (newToken) {
+        original.headers.Authorization = `Bearer ${newToken}`;
+        return apiClient(original);
+      }
+      forceLoginRedirect(true);
+    } else if (status === 401 && !isAuthEndpoint) {
+      forceLoginRedirect(Boolean(getAuthToken() || getRefreshToken()));
     }
     return Promise.reject(error);
   }
@@ -67,6 +115,14 @@ const buildQueryParams = (params: Record<string, number | string | undefined | n
 export interface TokenResponse {
   access_token: string;
   token_type: string;
+  refresh_token?: string;
+  employee: Employee;
+}
+
+export interface RefreshResponse {
+  access_token: string;
+  refresh_token: string;
+  token_type: string;
   employee: Employee;
 }
 
@@ -74,6 +130,15 @@ export const authApi = {
   login: async (email: string, password: string): Promise<TokenResponse> => {
     const response = await apiClient.post<TokenResponse>('/auth/login', { email, password });
     return response.data;
+  },
+  refresh: async (refreshToken: string): Promise<RefreshResponse> => {
+    const response = await apiClient.post<RefreshResponse>('/auth/refresh', {
+      refresh_token: refreshToken,
+    });
+    return response.data;
+  },
+  logout: async (refreshToken: string): Promise<void> => {
+    await apiClient.post('/auth/logout', { refresh_token: refreshToken });
   },
   me: async (): Promise<{ employee: Employee }> => {
     const response = await apiClient.get<{ employee: Employee }>('/auth/me');

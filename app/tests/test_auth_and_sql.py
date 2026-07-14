@@ -23,6 +23,15 @@ def test_jwt_roundtrip():
     assert payload["sub"] == "12"
     assert payload["email"] == "admin@example.com"
     assert payload["role"] == "admin"
+    assert payload["typ"] == "access"
+
+
+def test_refresh_token_hash_is_stable():
+    from app.auth import _hash_refresh_token
+
+    raw = "sample-refresh-token-value"
+    assert _hash_refresh_token(raw) == _hash_refresh_token(raw)
+    assert _hash_refresh_token(raw) != _hash_refresh_token(raw + "x")
 
 
 def test_ai_sql_rejects_mutations():

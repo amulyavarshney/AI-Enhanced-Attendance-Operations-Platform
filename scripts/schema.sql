@@ -13,6 +13,7 @@ DROP FUNCTION IF EXISTS update_timestamp_column() CASCADE;
 DROP FUNCTION IF EXISTS update_team_trends() CASCADE;
 
 -- Drop tables with foreign key references first
+DROP TABLE IF EXISTS refresh_tokens CASCADE;
 DROP TABLE IF EXISTS audit_logs CASCADE;
 DROP TABLE IF EXISTS attendance CASCADE;
 DROP TABLE IF EXISTS team_trends CASCADE;
@@ -112,6 +113,20 @@ CREATE TABLE audit_logs (
 );
 CREATE INDEX idx_audit_logs_created_at ON audit_logs(created_at);
 CREATE INDEX idx_audit_logs_actor_id ON audit_logs(actor_id);
+
+-- Create refresh_tokens table
+CREATE TABLE refresh_tokens (
+    id SERIAL PRIMARY KEY,
+    employee_id INTEGER NOT NULL REFERENCES employees(id),
+    token_hash VARCHAR NOT NULL UNIQUE,
+    family_id VARCHAR NOT NULL,
+    expires_at TIMESTAMP NOT NULL,
+    revoked INTEGER NOT NULL DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX idx_refresh_tokens_employee_id ON refresh_tokens(employee_id);
+CREATE INDEX idx_refresh_tokens_token_hash ON refresh_tokens(token_hash);
+CREATE INDEX idx_refresh_tokens_family_id ON refresh_tokens(family_id);
 
 -- Insert sample data for teams
 INSERT INTO teams (name) VALUES 

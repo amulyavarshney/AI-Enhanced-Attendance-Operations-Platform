@@ -60,6 +60,7 @@ class LoginRequest(BaseModel):
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
+    refresh_token: Optional[str] = None
     employee: Employee
 
 class AuthMeResponse(BaseModel):
@@ -68,6 +69,15 @@ class AuthMeResponse(BaseModel):
 class ChangePasswordRequest(BaseModel):
     current_password: str
     new_password: str
+
+class RefreshRequest(BaseModel):
+    refresh_token: str
+
+class RefreshResponse(BaseModel):
+    access_token: str
+    refresh_token: str
+    token_type: str = "bearer"
+    employee: Employee
 
 class AttendanceBase(BaseModel):
     employee_id: int

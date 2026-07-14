@@ -45,7 +45,7 @@ This document describes the current production-oriented architecture and operati
 
 2. **Backend API (FastAPI)**
    - CRUD + dashboard/analytics endpoints
-   - JWT auth (`/auth/login`, `/auth/me`, `/auth/change-password`) and RBAC dependencies
+   - JWT auth (`/auth/login`, `/auth/refresh`, `/auth/logout`, `/auth/me`, `/auth/change-password`) and RBAC dependencies
    - AI insights with SQL safety + circuit breaker
    - Audit middleware for successful mutating requests
    - Notifications derived from audit events

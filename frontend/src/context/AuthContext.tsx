@@ -1,6 +1,6 @@
 import React, { createContext, useCallback, useContext, useMemo, useState } from "react";
 import { Employee, Role } from "@/types/models";
-import { authApi, clearAuthToken, getAuthToken, setAuthToken } from "@/services/apiClient";
+import { authApi, clearAuthToken, getAuthToken, getRefreshToken, setAuthToken, setRefreshToken } from "@/services/apiClient";
 
 interface AuthContextValue {
   token: string | null;
@@ -42,6 +42,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [bootstrapped, setBootstrapped] = useState(() => !getAuthToken());
 
   const logout = useCallback(() => {
+    const refresh = getRefreshToken();
+    if (refresh) {
+      void authApi.logout(refresh).catch(() => undefined);
+    }
     clearAuthToken();
     localStorage.removeItem(EMPLOYEE_STORAGE_KEY);
     setToken(null);
@@ -51,6 +55,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const login = useCallback(async (email: string, password: string) => {
     const response = await authApi.login(email, password);
     setAuthToken(response.access_token);
+    if (response.refresh_token) {
+      setRefreshToken(response.refresh_token);
+    }
     localStorage.setItem(EMPLOYEE_STORAGE_KEY, JSON.stringify(response.employee));
     setToken(response.access_token);
     setEmployee(response.employee);
