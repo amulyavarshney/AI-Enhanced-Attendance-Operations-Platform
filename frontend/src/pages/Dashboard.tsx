@@ -395,35 +395,74 @@ const Dashboard: React.FC = () => {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              <div className="flex items-start space-x-3">
-                <AlertTriangle className="h-5 w-5 text-amber-500 mt-0.5" />
-                <div>
-                  <h4 className="text-sm font-medium">3 employees have missed check-in</h4>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Lisa Anderson, David Taylor, James Thomas
-                  </p>
-                </div>
-              </div>
-              
-              <div className="flex items-start space-x-3">
-                <AlertTriangle className="h-5 w-5 text-red-500 mt-0.5" />
-                <div>
-                  <h4 className="text-sm font-medium">Engineering team absence rate above threshold</h4>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    15% absence rate (threshold: 10%)
-                  </p>
-                </div>
-              </div>
-              
-              <div className="flex items-start space-x-3">
-                <AlertTriangle className="h-5 w-5 text-amber-500 mt-0.5" />
-                <div>
-                  <h4 className="text-sm font-medium">High WFH percentage in Design team</h4>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    65% of Design team is working from home today
-                  </p>
-                </div>
-              </div>
+              {(() => {
+                const missingCheckIn = employees.filter((emp) => {
+                  const record = todayAttendance.find((a) => a.employee_id === emp.id);
+                  return !record || !record.check_in;
+                });
+                const absentToday = todayAttendance.filter(
+                  (a) => a.status === AttendanceType.ABSENT || a.status === AttendanceType.LEAVE
+                );
+                const highWfhTeams = teamComparisonData.filter((t) => t.wfhRate >= 50);
+
+                if (
+                  missingCheckIn.length === 0 &&
+                  absentToday.length === 0 &&
+                  highWfhTeams.length === 0
+                ) {
+                  return (
+                    <p className="text-sm text-muted-foreground">
+                      No attendance alerts for the visible scope today.
+                    </p>
+                  );
+                }
+
+                return (
+                  <>
+                    {missingCheckIn.length > 0 && (
+                      <div className="flex items-start space-x-3">
+                        <AlertTriangle className="h-5 w-5 text-amber-500 mt-0.5" />
+                        <div>
+                          <h4 className="text-sm font-medium">
+                            {missingCheckIn.length} employee{missingCheckIn.length === 1 ? "" : "s"} missing check-in
+                          </h4>
+                          <p className="text-sm text-muted-foreground mt-1">
+                            {missingCheckIn
+                              .slice(0, 5)
+                              .map((e) => `${e.first_name} ${e.last_name}`)
+                              .join(", ")}
+                            {missingCheckIn.length > 5 ? "…" : ""}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                    {absentToday.length > 0 && (
+                      <div className="flex items-start space-x-3">
+                        <AlertTriangle className="h-5 w-5 text-red-500 mt-0.5" />
+                        <div>
+                          <h4 className="text-sm font-medium">
+                            {absentToday.length} absent/leave record{absentToday.length === 1 ? "" : "s"} today
+                          </h4>
+                          <p className="text-sm text-muted-foreground mt-1">
+                            Absence rate about {absentPercentage}% of visible headcount
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                    {highWfhTeams.map((team) => (
+                      <div key={team.name} className="flex items-start space-x-3">
+                        <AlertTriangle className="h-5 w-5 text-amber-500 mt-0.5" />
+                        <div>
+                          <h4 className="text-sm font-medium">High WFH in {team.name}</h4>
+                          <p className="text-sm text-muted-foreground mt-1">
+                            {team.wfhRate}% remote in recent trend window
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </>
+                );
+              })()}
             </div>
           </CardContent>
         </Card>

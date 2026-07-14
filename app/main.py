@@ -13,6 +13,12 @@ import io
 from .database import get_db, engine, Base
 from . import models, schemas, crud
 from .ai_service import AIService
+from .access import (
+    ensure_can_view_attendance,
+    ensure_can_view_employee,
+    ensure_can_view_team,
+    resolve_scope,
+)
 from .auth import (
     authenticate_employee,
     create_access_token,
@@ -213,22 +219,15 @@ async def create_team(
          response_model=List[schemas.Team],
          tags=["Teams"],
          summary="Get All Teams",
-         description="Get all teams.",
-         dependencies=[Depends(get_current_user)])
+         description="Get teams visible to the current user.")
 async def get_teams(
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: models.Employee = AuthRequired,
 ):
-    """
-    Get all teams.
-
-    Returns:
-    - List of teams
-
-    Raises:
-    - 500: Internal server error
-    """
+    scope = resolve_scope(current_user)
+    visible_team_id = None if scope.is_admin else (scope.team_id or current_user.team_id)
     try:
-        return crud.get_teams(db)
+        return crud.get_teams(db, team_id=visible_team_id)
     except Exception as e:
         logger.error(f"Error fetching teams: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
@@ -236,39 +235,33 @@ async def get_teams(
 @app.get("/teams/page",
          response_model=schemas.PaginatedTeams,
          tags=["Teams"],
-         summary="Get Teams (Paginated)",
-         dependencies=[Depends(get_current_user)])
+         summary="Get Teams (Paginated)")
 async def get_teams_page(
     db: Session = Depends(get_db),
+    current_user: models.Employee = AuthRequired,
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
     search: Optional[str] = Query(None),
 ):
-    items, total = crud.get_teams_paginated(db, skip=skip, limit=limit, search=search)
+    scope = resolve_scope(current_user)
+    visible_team_id = None if scope.is_admin else (scope.team_id or current_user.team_id)
+    items, total = crud.get_teams_paginated(
+        db, skip=skip, limit=limit, search=search, team_id=visible_team_id
+    )
     return schemas.PaginatedTeams(items=items, total=total, skip=skip, limit=limit)
 
 @app.get("/teams/{team_id}", 
          response_model=schemas.Team,
          tags=["Teams"],
          summary="Get Team",
-         description="Get a team by ID.",
-         dependencies=[Depends(get_current_user)])
+         description="Get a team by ID.")
 async def get_team(
     team_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: models.Employee = AuthRequired,
 ):
-    """
-    Get a team by ID.
-    
-    Parameters:
-    - **team_id**: Team ID
-    
-    Returns:
-    - Team details
-    
-    Raises:
-    - 404: Team not found
-    """
+    scope = resolve_scope(current_user)
+    ensure_can_view_team(scope, team_id, current_user)
     team = crud.get_team(db, team_id)
     if not team:
         raise HTTPException(status_code=404, detail="Team not found")
@@ -341,44 +334,30 @@ async def delete_team(
          response_model=List[schemas.Employee],
          tags=["Teams"],
          summary="Get Employees by Team",
-         description="Get employees by team ID.",
-         dependencies=[Depends(get_current_user)])
+         description="Get employees by team ID.")
 async def get_employees_by_team(
     team_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: models.Employee = AuthRequired,
 ):
-    """
-    Get employees by team ID.
-    """
+    scope = resolve_scope(current_user)
+    ensure_can_view_team(scope, team_id, current_user)
     return crud.get_employees_by_team(db, team_id)
 
 @app.get("/teams/{team_id}/attendance",
          response_model=List[schemas.Attendance],
          tags=["Teams"],
          summary="Get Attendance by Team",
-         description="Get attendance by team ID.",
-         dependencies=[Depends(get_current_user)])
+         description="Get attendance by team ID.")
 async def get_attendance_by_team(
     team_id: int,
     start_date: Optional[date] = Query(None, description="Start date for filtering attendance records, format: YYYY-MM-DD"),
     end_date: Optional[date] = Query(None, description="End date for filtering attendance records, format: YYYY-MM-DD"),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: models.Employee = AuthRequired,
 ):
-    """
-    Get attendance by team ID.
-
-    Parameters:
-    - **team_id**: Team ID
-    - **start_date**: Start date (optional)
-    - **end_date**: End date (optional)
-    
-    Returns:
-    - List of attendance records
-
-    Raises:
-    - 404: Team not found
-    - 500: Internal server error
-    """
+    scope = resolve_scope(current_user)
+    ensure_can_view_team(scope, team_id, current_user)
     try:
         return crud.get_attendance_by_team(db, team_id, start_date, end_date)
     except Exception as e:
@@ -389,29 +368,16 @@ async def get_attendance_by_team(
          response_model=List[schemas.TeamTrends],
          tags=["Teams"],
          summary="Get Attendance Trends by Team",
-         description="Get attendance trends by team ID.",
-         dependencies=[Depends(get_current_user)])
+         description="Get attendance trends by team ID.")
 async def get_attendance_trends_by_team(
     team_id: int,
     start_date: Optional[date] = Query(None, description="Start date for filtering attendance trends, format: YYYY-MM-DD"),
     end_date: Optional[date] = Query(None, description="End date for filtering attendance trends, format: YYYY-MM-DD"),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: models.Employee = AuthRequired,
 ):
-    """
-    Get attendance trends by team ID.
-
-    Parameters:
-    - **team_id**: Team ID
-    - **start_date**: Start date (optional)
-    - **end_date**: End date (optional)
-    
-    Returns:
-    - List of attendance trends
-
-    Raises:
-    - 404: Team not found
-    - 500: Internal server error
-    """
+    scope = resolve_scope(current_user)
+    ensure_can_view_team(scope, team_id, current_user)
     try:
         return crud.get_attendance_trends_by_team(db, team_id, start_date, end_date)
     except Exception as e:
@@ -453,33 +419,44 @@ async def create_employee(
          response_model=List[schemas.Employee],
          tags=["Employees"],
          summary="Get All Employees",
-         description="Get all employees.",
-         dependencies=[Depends(get_current_user)])
+         description="Get employees visible to the current user.")
 async def get_employees(
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: models.Employee = AuthRequired,
 ):
-    """
-    Get all employees.
-
-    Returns:
-    - List of employees
-    """
-    return crud.get_employees(db)
+    scope = resolve_scope(current_user)
+    return crud.get_employees(
+        db,
+        employee_id=scope.employee_id,
+        team_id=scope.team_id,
+    )
 
 @app.get("/employees/page",
          response_model=schemas.PaginatedEmployees,
          tags=["Employees"],
-         summary="Get Employees (Paginated)",
-         dependencies=[Depends(get_current_user)])
+         summary="Get Employees (Paginated)")
 async def get_employees_page(
     db: Session = Depends(get_db),
+    current_user: models.Employee = AuthRequired,
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
     team_id: Optional[int] = Query(None),
     search: Optional[str] = Query(None),
 ):
+    scope = resolve_scope(current_user)
+    effective_team_id = scope.team_id
+    effective_employee_id = scope.employee_id
+    if scope.is_admin:
+        effective_team_id = team_id
+    elif scope.team_id is not None and team_id is not None and team_id != scope.team_id:
+        raise HTTPException(status_code=403, detail="Not allowed to view that team")
     items, total = crud.get_employees_paginated(
-        db, skip=skip, limit=limit, team_id=team_id, search=search
+        db,
+        skip=skip,
+        limit=limit,
+        team_id=effective_team_id,
+        employee_id=effective_employee_id,
+        search=search,
     )
     return schemas.PaginatedEmployees(items=items, total=total, skip=skip, limit=limit)
 
@@ -487,28 +464,15 @@ async def get_employees_page(
          response_model=schemas.Employee,
          tags=["Employees"],
          summary="Get Employee",
-         description="Get an employee by ID.",
-         dependencies=[Depends(get_current_user)])
+         description="Get an employee by ID.")
 async def get_employee(
     employee_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: models.Employee = AuthRequired,
 ):
-    """
-    Get an employee by ID.
-    
-    Parameters:
-    - **employee_id**: Employee ID
-    
-    Returns:
-    - Employee details
-    
-    Raises:
-    - 404: Employee not found
-    """
+    scope = resolve_scope(current_user)
     employee = crud.get_employee(db, employee_id)
-    if not employee:
-        raise HTTPException(status_code=404, detail="Employee not found")
-    return employee
+    return ensure_can_view_employee(scope, employee)
 
 @app.put("/employees/{employee_id}",
          response_model=schemas.Employee,
@@ -574,29 +538,17 @@ async def delete_employee(
          response_model=List[schemas.Attendance],
          tags=["Employees"],
          summary="Get Employee Attendance",
-         description="Get attendance records for a specific employee.",
-         dependencies=[Depends(get_current_user)])
+         description="Get attendance records for a specific employee.")
 async def get_employee_attendance(
     employee_id: int,
     start_date: Optional[date] = Query(None, description="Start date for filtering attendance records, format: YYYY-MM-DD"),
     end_date: Optional[date] = Query(None, description="End date for filtering attendance records, format: YYYY-MM-DD"),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: models.Employee = AuthRequired,
 ):
-    """
-    Get attendance records for a specific employee.
-
-    Parameters:
-    - **employee_id**: Employee ID
-    - **start_date**: Start date (optional)
-    - **end_date**: End date (optional)
-    
-    Returns:
-    - List of attendance records
-
-    Raises:
-    - 404: Employee not found
-    - 500: Internal server error
-    """
+    scope = resolve_scope(current_user)
+    employee = crud.get_employee(db, employee_id)
+    ensure_can_view_employee(scope, employee)
     try:
         return crud.get_employee_attendance(db, employee_id, start_date, end_date)
     except Exception as e:
@@ -645,28 +597,22 @@ async def create_attendance(
          response_model=List[schemas.Attendance],
          tags=["Attendance"],
          summary="Get All Attendance Records",
-         description="Get all attendance records.",
-         dependencies=[Depends(get_current_user)])
+         description="Get attendance records visible to the current user.")
 async def get_all_attendance(
     db: Session = Depends(get_db),
+    current_user: models.Employee = AuthRequired,
     start_date: Optional[date] = Query(None, description="Start date for filtering attendance records, format: YYYY-MM-DD"),
     end_date: Optional[date] = Query(None, description="End date for filtering attendance records, format: YYYY-MM-DD")
 ): 
-    """
-    Get all attendance records.
-
-    Parameters:
-    - **start_date**: Start date (optional)
-    - **end_date**: End date (optional)
-
-    Returns:
-    - List of attendance records
-
-    Raises:
-    - 500: For server errors
-    """
+    scope = resolve_scope(current_user)
     try:
-        return crud.get_attendance_by_date(db, start_date, end_date)
+        return crud.get_attendance_by_date(
+            db,
+            start_date,
+            end_date,
+            employee_id=scope.employee_id,
+            team_id=scope.team_id,
+        )
     except Exception as e:
         logger.error(f"Error fetching attendance: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
@@ -674,10 +620,10 @@ async def get_all_attendance(
 @app.get("/attendance/page",
          response_model=schemas.PaginatedAttendance,
          tags=["Attendance"],
-         summary="Get Attendance (Paginated)",
-         dependencies=[Depends(get_current_user)])
+         summary="Get Attendance (Paginated)")
 async def get_attendance_page(
     db: Session = Depends(get_db),
+    current_user: models.Employee = AuthRequired,
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
     start_date: Optional[date] = Query(None),
@@ -685,13 +631,25 @@ async def get_attendance_page(
     employee_id: Optional[int] = Query(None),
     status: Optional[models.AttendanceType] = Query(None),
 ):
+    scope = resolve_scope(current_user)
+    effective_employee_id = scope.employee_id
+    effective_team_id = scope.team_id
+    if scope.is_admin:
+        effective_employee_id = employee_id
+        effective_team_id = None
+    elif scope.team_id is not None and employee_id is not None:
+        target = crud.get_employee(db, employee_id)
+        ensure_can_view_employee(scope, target)
+        effective_employee_id = employee_id
+        effective_team_id = None
     items, total = crud.get_attendance_paginated(
         db,
         skip=skip,
         limit=limit,
         start_date=start_date,
         end_date=end_date,
-        employee_id=employee_id,
+        employee_id=effective_employee_id,
+        team_id=effective_team_id,
         status=status,
     )
     return schemas.PaginatedAttendance(items=items, total=total, skip=skip, limit=limit)
@@ -699,17 +657,33 @@ async def get_attendance_page(
 @app.get("/attendance/export",
          tags=["Attendance"],
          summary="Export Attendance CSV",
-         description="Download attendance records as CSV for a date range.",
-         dependencies=[Depends(get_current_user)])
+         description="Download attendance records as CSV for a date range.")
 async def export_attendance_csv(
     db: Session = Depends(get_db),
+    current_user: models.Employee = AuthRequired,
     start_date: Optional[date] = Query(None),
     end_date: Optional[date] = Query(None),
     employee_id: Optional[int] = Query(None),
 ):
-    records = crud.get_attendance_by_date(db, start_date, end_date)
-    if employee_id is not None:
-        records = [r for r in records if r.employee_id == employee_id]
+    scope = resolve_scope(current_user)
+    effective_employee_id = scope.employee_id
+    effective_team_id = scope.team_id
+    if scope.is_admin:
+        effective_employee_id = employee_id
+        effective_team_id = None
+    elif scope.team_id is not None and employee_id is not None:
+        target = crud.get_employee(db, employee_id)
+        ensure_can_view_employee(scope, target)
+        effective_employee_id = employee_id
+        effective_team_id = None
+
+    records = crud.get_attendance_by_date(
+        db,
+        start_date,
+        end_date,
+        employee_id=effective_employee_id,
+        team_id=effective_team_id,
+    )
 
     buffer = io.StringIO()
     writer = csv.writer(buffer)
@@ -815,11 +789,18 @@ async def self_check_out(
          response_model=schemas.DashboardStats,
          tags=["Dashboard"],
          summary="Get Dashboard Stats",
-         description="Get today's attendance and org summary statistics.",
-         dependencies=[Depends(get_current_user)])
-async def get_dashboard_stats(db: Session = Depends(get_db)):
+         description="Get today's attendance and org summary statistics.")
+async def get_dashboard_stats(
+    db: Session = Depends(get_db),
+    current_user: models.Employee = AuthRequired,
+):
+    scope = resolve_scope(current_user)
     try:
-        return crud.get_dashboard_stats(db)
+        return crud.get_dashboard_stats(
+            db,
+            employee_id=scope.employee_id,
+            team_id=scope.team_id,
+        )
     except Exception as e:
         logger.error(f"Error fetching dashboard stats: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
@@ -828,16 +809,29 @@ async def get_dashboard_stats(db: Session = Depends(get_db)):
          response_model=List[schemas.TeamTrends],
          tags=["Dashboard"],
          summary="Get Attendance Trends",
-         description="Get team attendance trends across all teams for a date range.",
-         dependencies=[Depends(get_current_user)])
+         description="Get team attendance trends across all teams for a date range.")
 async def get_dashboard_trends(
     db: Session = Depends(get_db),
+    current_user: models.Employee = AuthRequired,
     start_date: Optional[date] = Query(None, description="Start date YYYY-MM-DD"),
     end_date: Optional[date] = Query(None, description="End date YYYY-MM-DD"),
     team_id: Optional[int] = Query(None, description="Optional team filter"),
 ):
+    scope = resolve_scope(current_user)
+    effective_team_id = scope.team_id
+    if scope.is_admin:
+        effective_team_id = team_id
+    elif scope.employee_id is not None:
+        effective_team_id = current_user.team_id
+    elif team_id is not None and scope.team_id is not None and team_id != scope.team_id:
+        raise HTTPException(status_code=403, detail="Not allowed to view that team")
     try:
-        return crud.get_all_team_trends(db, start_date=start_date, end_date=end_date, team_id=team_id)
+        return crud.get_all_team_trends(
+            db,
+            start_date=start_date,
+            end_date=end_date,
+            team_id=effective_team_id,
+        )
     except Exception as e:
         logger.error(f"Error fetching dashboard trends: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
@@ -846,30 +840,17 @@ async def get_dashboard_trends(
          response_model=schemas.Attendance,
          tags=["Attendance"],
          summary="Get Attendance Record",
-         description="Get an attendance record by ID.",
-         dependencies=[Depends(get_current_user)])
+         description="Get an attendance record by ID.")
 async def get_attendance(
     attendance_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: models.Employee = AuthRequired,
 ):
-    """
-    Get an attendance record by ID.
-
-    Parameters:
-    - **attendance_id**: The ID of the attendance record to get
-    
-    Returns:
-    - Attendance record details
-
-    Raises:
-    - 404: If attendance record not found
-    - 500: For server errors
-    """
+    scope = resolve_scope(current_user)
     try:
         record = crud.get_attendance_by_id(db, attendance_id)
-        if not record:
-            raise HTTPException(status_code=404, detail="Attendance record not found")
-        return record
+        employee = crud.get_employee(db, record.employee_id) if record else None
+        return ensure_can_view_attendance(scope, record, employee)
     except HTTPException:
         raise
     except Exception as e:

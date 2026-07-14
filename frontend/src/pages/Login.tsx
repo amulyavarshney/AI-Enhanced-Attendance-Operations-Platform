@@ -11,8 +11,8 @@ const Login: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { toast } = useToast();
-  const [email, setEmail] = useState("admin@example.com");
-  const [password, setPassword] = useState("Admin123!");
+  const [email, setEmail] = useState(import.meta.env.DEV ? "admin@example.com" : "");
+  const [password, setPassword] = useState(import.meta.env.DEV ? "Admin123!" : "");
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -83,9 +83,11 @@ const Login: React.FC = () => {
           <Button type="submit" className="w-full" disabled={loading}>
             {loading ? "Signing in..." : "Sign in"}
           </Button>
-          <p className="text-xs text-slate-500 text-center">
-            Seeded admin: admin@example.com / Admin123!
-          </p>
+          {import.meta.env.DEV && (
+            <p className="text-xs text-slate-500 text-center">
+              Dev seed: admin@example.com / Admin123!
+            </p>
+          )}
         </form>
       </div>
     </div>

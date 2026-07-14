@@ -9,9 +9,19 @@ import logging
 logger = logging.getLogger(__name__)
 
 # Employee CRUD
-def get_employees(db: Session) -> List[models.Employee]:
-    """Get all employees"""
-    return db.query(models.Employee).all()
+def get_employees(
+    db: Session,
+    *,
+    employee_id: Optional[int] = None,
+    team_id: Optional[int] = None,
+) -> List[models.Employee]:
+    """Get employees, optionally scoped to one employee or one team."""
+    query = db.query(models.Employee)
+    if employee_id is not None:
+        query = query.filter(models.Employee.id == employee_id)
+    elif team_id is not None:
+        query = query.filter(models.Employee.team_id == team_id)
+    return query.all()
 
 def get_employee(db: Session, employee_id: int) -> Optional[models.Employee]:
     """Get an employee by ID"""
@@ -84,9 +94,12 @@ def delete_employee(db: Session, employee_id: int) -> None:
         raise ValueError(f"Failed to delete employee: {str(e)}")
 
 # Team CRUD
-def get_teams(db: Session) -> List[models.Team]:
-    """Get all teams"""
-    return db.query(models.Team).all()
+def get_teams(db: Session, *, team_id: Optional[int] = None) -> List[models.Team]:
+    """Get teams, optionally scoped to a single team."""
+    query = db.query(models.Team)
+    if team_id is not None:
+        query = query.filter(models.Team.id == team_id)
+    return query.all()
 
 def get_team(db: Session, team_id: int) -> Optional[models.Team]:
     """Get a team by ID"""
@@ -248,13 +261,24 @@ def create_attendance(db: Session, attendance: schemas.AttendanceCreate) -> mode
         logger.error(f"Error creating attendance: {str(e)}")
         raise ValueError(f"Failed to create attendance: {str(e)}")
 
-def get_attendance_by_date(db: Session, start_date: Optional[date] = None, end_date: Optional[date] = None) -> List[models.Attendance]:
-    """Get attendance records by date"""
+def get_attendance_by_date(
+    db: Session,
+    start_date: Optional[date] = None,
+    end_date: Optional[date] = None,
+    *,
+    employee_id: Optional[int] = None,
+    team_id: Optional[int] = None,
+) -> List[models.Attendance]:
+    """Get attendance records by date, optionally scoped to employee or team."""
     query = db.query(models.Attendance)
     if start_date:
         query = query.filter(models.Attendance.date >= start_date)
     if end_date:
         query = query.filter(models.Attendance.date <= end_date)
+    if employee_id is not None:
+        query = query.filter(models.Attendance.employee_id == employee_id)
+    elif team_id is not None:
+        query = query.join(models.Employee).filter(models.Employee.team_id == team_id)
     return query.all()
 
 def get_attendance_by_id(db: Session, attendance_id: int) -> Optional[models.Attendance]:
@@ -439,10 +463,13 @@ def get_employees_paginated(
     skip: int = 0,
     limit: int = 50,
     team_id: Optional[int] = None,
+    employee_id: Optional[int] = None,
     search: Optional[str] = None,
 ) -> tuple[List[models.Employee], int]:
     query = db.query(models.Employee)
-    if team_id is not None:
+    if employee_id is not None:
+        query = query.filter(models.Employee.id == employee_id)
+    elif team_id is not None:
         query = query.filter(models.Employee.team_id == team_id)
     if search:
         pattern = f"%{search}%"
@@ -464,8 +491,11 @@ def get_teams_paginated(
     skip: int = 0,
     limit: int = 50,
     search: Optional[str] = None,
+    team_id: Optional[int] = None,
 ) -> tuple[List[models.Team], int]:
     query = db.query(models.Team)
+    if team_id is not None:
+        query = query.filter(models.Team.id == team_id)
     if search:
         query = query.filter(models.Team.name.ilike(f"%{search}%"))
     total = query.count()
@@ -481,6 +511,7 @@ def get_attendance_paginated(
     start_date: Optional[date] = None,
     end_date: Optional[date] = None,
     employee_id: Optional[int] = None,
+    team_id: Optional[int] = None,
     status: Optional[models.AttendanceType] = None,
 ) -> tuple[List[models.Attendance], int]:
     query = db.query(models.Attendance)
@@ -490,6 +521,8 @@ def get_attendance_paginated(
         query = query.filter(models.Attendance.date <= end_date)
     if employee_id is not None:
         query = query.filter(models.Attendance.employee_id == employee_id)
+    elif team_id is not None:
+        query = query.join(models.Employee).filter(models.Employee.team_id == team_id)
     if status is not None:
         query = query.filter(models.Attendance.status == status)
     total = query.count()
@@ -518,17 +551,36 @@ def get_all_team_trends(
     return query.order_by(models.TeamTrends.date.asc()).all()
 
 
-def get_dashboard_stats(db: Session) -> Dict[str, Any]:
+def get_dashboard_stats(
+    db: Session,
+    *,
+    employee_id: Optional[int] = None,
+    team_id: Optional[int] = None,
+) -> Dict[str, Any]:
     today = date.today()
-    total_employees = db.query(func.count(models.Employee.id)).scalar() or 0
-    total_teams = db.query(func.count(models.Team.id)).scalar() or 0
+    employee_query = db.query(func.count(models.Employee.id))
+    if employee_id is not None:
+        employee_query = employee_query.filter(models.Employee.id == employee_id)
+    elif team_id is not None:
+        employee_query = employee_query.filter(models.Employee.team_id == team_id)
+    total_employees = employee_query.scalar() or 0
 
-    status_rows = (
-        db.query(models.Attendance.status, func.count(models.Attendance.id))
-        .filter(models.Attendance.date == today)
-        .group_by(models.Attendance.status)
-        .all()
+    if employee_id is not None:
+        total_teams = 1 if db.query(models.Employee.team_id).filter(models.Employee.id == employee_id).scalar() else 0
+    elif team_id is not None:
+        total_teams = 1
+    else:
+        total_teams = db.query(func.count(models.Team.id)).scalar() or 0
+
+    attendance_query = db.query(models.Attendance.status, func.count(models.Attendance.id)).filter(
+        models.Attendance.date == today
     )
+    if employee_id is not None:
+        attendance_query = attendance_query.filter(models.Attendance.employee_id == employee_id)
+    elif team_id is not None:
+        attendance_query = attendance_query.join(models.Employee).filter(models.Employee.team_id == team_id)
+    status_rows = attendance_query.group_by(models.Attendance.status).all()
+
     counts = {
         models.AttendanceType.present: 0,
         models.AttendanceType.absent: 0,

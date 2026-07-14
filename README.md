@@ -158,11 +158,12 @@ All business APIs require a JWT bearer token except health and login.
 Seeded users share password `Admin123!` (including `admin@example.com`).
 
 Roles:
-- **admin**: full access including deletes and audit log listing
-- **manager**: manage teams/employees/attendance + AI insights
-- **employee**: read data, self check-in/out, and change own password
+- **admin**: full org visibility including deletes and audit log listing
+- **manager**: own team visibility + manage teams/employees/attendance + AI insights
+- **employee**: own profile/attendance only, self check-in/out, and change own password
 
 UI also hides manager/admin actions (mutations, AI Insights, Audit Logs) based on role.
+Read APIs apply the same row-level scope as the signed-in role.
 
 ## API Endpoints
 

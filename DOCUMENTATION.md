@@ -71,9 +71,9 @@ This document describes the current production-oriented architecture and operati
 2. Send `Authorization: Bearer <token>`
 3. Change password: `POST /auth/change-password`
 4. Roles:
-   - **admin**: deletes, audit logs page/API
-   - **manager**: team/employee mutations + AI
-   - **employee**: read + self check-in/out + change password
+   - **admin**: full org reads/writes, deletes, audit logs page/API
+   - **manager**: own-team reads + team/employee mutations + AI
+   - **employee**: own profile/attendance reads + self check-in/out + change password
 5. Frontend validates stored tokens with `GET /auth/me` on boot and redirects to `/login?reason=expired` on 401
 
 Seeded password for demo users: `Admin123!`  
