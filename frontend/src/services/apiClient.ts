@@ -38,11 +38,17 @@ apiClient.interceptors.request.use((config) => {
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
+    const status = error.response?.status;
+    const requestUrl = String(error.config?.url ?? "");
+    const isLoginRequest = requestUrl.includes("/auth/login");
+
+    if (status === 401 && !isLoginRequest) {
+      const hadToken = Boolean(getAuthToken());
       clearAuthToken();
-      localStorage.removeItem('attendance_auth_employee');
-      if (window.location.pathname !== '/login') {
-        window.location.assign('/login');
+      localStorage.removeItem("attendance_auth_employee");
+      if (window.location.pathname !== "/login") {
+        const suffix = hadToken ? "?reason=expired" : "";
+        window.location.assign(`/login${suffix}`);
       }
     }
     return Promise.reject(error);

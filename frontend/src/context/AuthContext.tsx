@@ -39,6 +39,14 @@ function normalizeRole(role: Employee["role"] | undefined | null): Role | null {
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [token, setToken] = useState<string | null>(() => getAuthToken());
   const [employee, setEmployee] = useState<Employee | null>(() => loadStoredEmployee());
+  const [bootstrapped, setBootstrapped] = useState(() => !getAuthToken());
+
+  const logout = useCallback(() => {
+    clearAuthToken();
+    localStorage.removeItem(EMPLOYEE_STORAGE_KEY);
+    setToken(null);
+    setEmployee(null);
+  }, []);
 
   const login = useCallback(async (email: string, password: string) => {
     const response = await authApi.login(email, password);
@@ -48,12 +56,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setEmployee(response.employee);
   }, []);
 
-  const logout = useCallback(() => {
-    clearAuthToken();
-    localStorage.removeItem(EMPLOYEE_STORAGE_KEY);
-    setToken(null);
-    setEmployee(null);
-  }, []);
+  React.useEffect(() => {
+    let cancelled = false;
+    const bootstrap = async () => {
+      const existing = getAuthToken();
+      if (!existing) {
+        if (!cancelled) setBootstrapped(true);
+        return;
+      }
+      try {
+        const me = await authApi.me();
+        if (cancelled) return;
+        localStorage.setItem(EMPLOYEE_STORAGE_KEY, JSON.stringify(me.employee));
+        setEmployee(me.employee);
+        setToken(existing);
+      } catch (error: unknown) {
+        if (cancelled) return;
+        const status = (error as { response?: { status?: number } })?.response?.status;
+        if (status === 401 || !getAuthToken()) {
+          logout();
+        }
+      } finally {
+        if (!cancelled) setBootstrapped(true);
+      }
+    };
+    void bootstrap();
+    return () => {
+      cancelled = true;
+    };
+  }, [logout]);
 
   const role = normalizeRole(employee?.role);
   const isAdmin = role === Role.ADMIN;
@@ -74,6 +105,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }),
     [token, employee, role, isAdmin, canManage, canUseAI, login, logout]
   );
+
+  if (!bootstrapped) {
+    return null;
+  }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
