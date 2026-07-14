@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import text
 from typing import List, Optional
 import logging
-from datetime import datetime, date
+from datetime import datetime, date, timezone
 import os
 import csv
 import io
@@ -101,7 +101,7 @@ async def root():
             "message": "Welcome to AI-Enhanced Attendance Operations Platform",
             "version": "1.0.0",
             "status": "healthy",
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
     except Exception as e:
         logger.error(f"Error in health check: {str(e)}")
@@ -128,7 +128,7 @@ async def health_ready(db: Session = Depends(get_db)):
         "status": "ready",
         "database": db_status,
         "ai": ai_status,
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
 # Auth Endpoints

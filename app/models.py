@@ -1,9 +1,18 @@
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Enum, Date, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
-from datetime import datetime
+from datetime import datetime, timezone
 import enum
 from .database import Base
+
+
+def utc_now() -> datetime:
+    return datetime.now(timezone.utc).replace(tzinfo=None)
+
+
+def utc_today():
+    return datetime.now(timezone.utc).date()
+
 
 class AttendanceType(enum.Enum):
     present = "present"
@@ -22,8 +31,8 @@ class Team(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
+    updated_at = Column(DateTime, default=utc_now, onupdate=utc_now)
     
     employees = relationship("Employee", back_populates="team")
 
@@ -37,10 +46,10 @@ class Employee(Base):
     phone = Column(String, nullable=True)
     role = Column(Enum(Role), default=Role.employee)
     team_id = Column(Integer, ForeignKey("teams.id"))
-    hire_date = Column(Date, default=datetime.utcnow().date)
+    hire_date = Column(Date, default=utc_today)
     hashed_password = Column(String, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
+    updated_at = Column(DateTime, default=utc_now, onupdate=utc_now)
     
     team = relationship("Team", back_populates="employees")
     attendance_records = relationship("Attendance", back_populates="employee")
@@ -53,13 +62,13 @@ class Attendance(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     employee_id = Column(Integer, ForeignKey("employees.id"))
-    date = Column(Date, default=datetime.utcnow().date)
+    date = Column(Date, default=utc_today)
     status = Column(Enum(AttendanceType))
     check_in = Column(DateTime, nullable=True)
     check_out = Column(DateTime, nullable=True)
     notes = Column(Text, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
+    updated_at = Column(DateTime, default=utc_now, onupdate=utc_now)
     
     employee = relationship("Employee", back_populates="attendance_records")
 
@@ -85,7 +94,7 @@ class AIInsight(Base):
     query = Column(Text, nullable=False)
     summary = Column(Text, nullable=False)
     details = Column(JSONB)
-    generated_at = Column(DateTime, default=datetime.utcnow)
+    generated_at = Column(DateTime, default=utc_now)
 
 class AuditLog(Base):
     __tablename__ = "audit_logs"
@@ -98,5 +107,6 @@ class AuditLog(Base):
     status_code = Column(Integer, nullable=False)
     action = Column(String, nullable=False)
     details = Column(JSONB, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
+
 

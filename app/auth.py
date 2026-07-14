@@ -109,6 +109,39 @@ def require_roles(*roles: str) -> Callable:
     return dependency
 
 
+INSECURE_JWT_SECRETS = {
+    "dev-only-change-me-in-production",
+    "change-me",
+    "secret",
+    "password",
+}
+
+INSECURE_ADMIN_KEYS = {
+    "dev_reset_key",
+    "change-me-dev-reset-key",
+    "change-me",
+    "admin",
+}
+
+
 def warn_if_insecure_defaults() -> None:
-    if APP_ENV == "production" and JWT_SECRET_KEY == "dev-only-change-me-in-production":
-        raise RuntimeError("JWT_SECRET_KEY must be set to a strong secret in production")
+    """Refuse to start in production with weak or missing security settings."""
+    if APP_ENV != "production":
+        return
+
+    if not JWT_SECRET_KEY or JWT_SECRET_KEY in INSECURE_JWT_SECRETS or len(JWT_SECRET_KEY) < 32:
+        raise RuntimeError(
+            "JWT_SECRET_KEY must be set to a strong secret (at least 32 characters) in production"
+        )
+
+    cors_origins = [
+        origin.strip()
+        for origin in os.getenv("CORS_ORIGINS", "").split(",")
+        if origin.strip()
+    ]
+    if not cors_origins:
+        raise RuntimeError("CORS_ORIGINS must be set to an explicit allowlist in production")
+
+    admin_key = os.getenv("ADMIN_API_KEY")
+    if admin_key is not None and admin_key in INSECURE_ADMIN_KEYS:
+        raise RuntimeError("ADMIN_API_KEY must not use a known insecure default in production")

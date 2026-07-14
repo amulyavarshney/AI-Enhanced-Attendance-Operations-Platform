@@ -8,6 +8,7 @@ from app.auth import create_access_token, decode_access_token, hash_password, ve
 from app.models import AttendanceType
 from app.rate_limit import SlidingWindowRateLimiter
 from app.circuit_breaker import CircuitBreaker
+from app import auth as auth_module
 
 
 def test_password_hash_roundtrip():
@@ -67,3 +68,27 @@ def test_circuit_breaker_opens_after_failures():
     assert not breaker.allow_request()
     breaker.record_success()
     assert breaker.allow_request()
+
+
+def test_production_rejects_insecure_jwt_secret(monkeypatch):
+    monkeypatch.setattr(auth_module, "APP_ENV", "production")
+    monkeypatch.setattr(auth_module, "JWT_SECRET_KEY", "dev-only-change-me-in-production")
+    monkeypatch.setenv("CORS_ORIGINS", "https://app.example.com")
+    monkeypatch.delenv("ADMIN_API_KEY", raising=False)
+    with pytest.raises(RuntimeError, match="JWT_SECRET_KEY"):
+        auth_module.warn_if_insecure_defaults()
+
+
+def test_production_rejects_missing_cors(monkeypatch):
+    monkeypatch.setattr(auth_module, "APP_ENV", "production")
+    monkeypatch.setattr(auth_module, "JWT_SECRET_KEY", "a" * 40)
+    monkeypatch.setenv("CORS_ORIGINS", "")
+    monkeypatch.delenv("ADMIN_API_KEY", raising=False)
+    with pytest.raises(RuntimeError, match="CORS_ORIGINS"):
+        auth_module.warn_if_insecure_defaults()
+
+
+def test_development_allows_default_secret(monkeypatch):
+    monkeypatch.setattr(auth_module, "APP_ENV", "development")
+    monkeypatch.setattr(auth_module, "JWT_SECRET_KEY", "dev-only-change-me-in-production")
+    auth_module.warn_if_insecure_defaults()

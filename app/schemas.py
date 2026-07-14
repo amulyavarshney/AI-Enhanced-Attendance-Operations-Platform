@@ -1,7 +1,11 @@
-from pydantic import BaseModel
-from datetime import datetime, date as date_type
+from pydantic import BaseModel, Field
+from datetime import datetime, date as date_type, timezone
 from typing import Optional, List, Dict, Any
 from .models import AttendanceType, Role
+
+
+def utc_now_naive() -> datetime:
+    return datetime.now(timezone.utc).replace(tzinfo=None)
 
 class TeamBase(BaseModel):
     name: str
@@ -29,7 +33,7 @@ class EmployeeBase(BaseModel):
     team_id: int
 
 class EmployeeCreate(EmployeeBase):
-    hire_date: date_type = date_type.today()
+    hire_date: date_type = Field(default_factory=date_type.today)
     password: Optional[str] = None
 
 class EmployeeUpdate(BaseModel):
@@ -69,7 +73,7 @@ class AttendanceBase(BaseModel):
     notes: Optional[str] = None
 
 class AttendanceCreate(AttendanceBase):
-    date: date_type = date_type.today()
+    date: date_type = Field(default_factory=date_type.today)
 
 class AttendanceUpdate(BaseModel):
     status: Optional[AttendanceType] = None
@@ -103,7 +107,7 @@ class AIInsightCreate(BaseModel):
     query: str
     summary: str
     details: Dict[str, Any]
-    generated_at: datetime = datetime.utcnow()
+    generated_at: datetime = Field(default_factory=utc_now_naive)
 
 class AIInsight(AIInsightCreate):
     id: int
