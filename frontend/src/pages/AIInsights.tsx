@@ -29,9 +29,10 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
-import { AIInsight } from "@/types/models";
-import { insightApi } from "@/services/apiClient";
+import { AIInsight, Team, TeamTrends } from "@/types/models";
+import { dashboardApi, insightApi, teamApi } from "@/services/apiClient";
 import { formatDateTime } from "@/utils/formatters";
+import { format, subDays } from "date-fns";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table,
@@ -84,6 +85,68 @@ interface LiveWidget {
   color: string;
 }
 
+function attendanceRateFromTrends(trends: TeamTrends[]): { rate: number; delta: number } {
+  if (trends.length === 0) {
+    return { rate: 0, delta: 0 };
+  }
+
+  const byDate = new Map<string, { present: number; total: number }>();
+  for (const trend of trends) {
+    const existing = byDate.get(trend.date) ?? { present: 0, total: 0 };
+    existing.present += trend.present_count + trend.wfh_count + trend.half_day_count;
+    existing.total += trend.total_employees;
+    byDate.set(trend.date, existing);
+  }
+
+  const days = Array.from(byDate.entries()).sort(([a], [b]) => a.localeCompare(b));
+  const overallPresent = days.reduce((sum, [, d]) => sum + d.present, 0);
+  const overallTotal = days.reduce((sum, [, d]) => sum + d.total, 0);
+  const rate = overallTotal > 0 ? Math.round((overallPresent / overallTotal) * 1000) / 10 : 0;
+
+  const midpoint = Math.floor(days.length / 2) || 1;
+  const firstHalf = days.slice(0, midpoint);
+  const secondHalf = days.slice(midpoint);
+  const avg = (slice: typeof days) => {
+    const present = slice.reduce((sum, [, d]) => sum + d.present, 0);
+    const total = slice.reduce((sum, [, d]) => sum + d.total, 0);
+    return total > 0 ? (present / total) * 100 : 0;
+  };
+  const delta =
+    firstHalf.length && secondHalf.length
+      ? Math.round((avg(secondHalf) - avg(firstHalf)) * 10) / 10
+      : 0;
+
+  return { rate, delta };
+}
+
+function topTeamFromTrends(trends: TeamTrends[], teams: Team[]): string {
+  if (trends.length === 0 || teams.length === 0) {
+    return "—";
+  }
+
+  const byTeam = new Map<number, { present: number; total: number }>();
+  for (const trend of trends) {
+    const existing = byTeam.get(trend.team_id) ?? { present: 0, total: 0 };
+    existing.present += trend.present_count + trend.wfh_count + trend.half_day_count;
+    existing.total += trend.total_employees;
+    byTeam.set(trend.team_id, existing);
+  }
+
+  let bestId: number | null = null;
+  let bestRate = -1;
+  for (const [teamId, counts] of byTeam) {
+    if (counts.total === 0) continue;
+    const rate = counts.present / counts.total;
+    if (rate > bestRate) {
+      bestRate = rate;
+      bestId = teamId;
+    }
+  }
+
+  if (bestId == null) return "—";
+  return teams.find((t) => t.id === bestId)?.name ?? `Team ${bestId}`;
+}
+
 const AIInsightsPage: React.FC = () => {
   const [insights, setInsights] = useState<EnhancedInsight[]>([]);
   const [liveWidgets, setLiveWidgets] = useState<LiveWidget[]>([]);
@@ -110,8 +173,17 @@ const AIInsightsPage: React.FC = () => {
     const fetchData = async () => {
       setLoading(true);
       try {
-        // Fetch insights
-        const insightsData = await insightApi.getAIInsights();
+        const end = new Date();
+        const start = subDays(end, 30);
+        const startDate = format(start, "yyyy-MM-dd");
+        const endDate = format(end, "yyyy-MM-dd");
+
+        const [insightsData, stats, trends, teams] = await Promise.all([
+          insightApi.getAIInsights(),
+          dashboardApi.getStats(),
+          dashboardApi.getTrends(startDate, endDate),
+          teamApi.getTeams(),
+        ]);
 
         // Enhance with categories and tags
         const enhancedInsights = insightsData.map((insight) => {
@@ -178,21 +250,23 @@ const AIInsightsPage: React.FC = () => {
             ...insight,
             category,
             tags,
-            starred: Math.random() > 0.7, // Randomly star some insights for demo
+            starred: false,
           };
         });
 
         setInsights(enhancedInsights);
 
-        // Create live widgets based on key metrics
+        const { rate, delta } = attendanceRateFromTrends(trends);
+        const trendLabel = delta > 0 ? "Positive" : delta < 0 ? "Negative" : "Stable";
+
         setLiveWidgets([
           {
             id: "attendance-rate",
             title: "Overall Attendance",
             query:
               "What's the current attendance rate? (last 30 days): Answer in percentage",
-            value: "94.2%",
-            delta: 1.5,
+            value: `${rate}%`,
+            delta,
             icon: <Users className="h-4 w-4" />,
             color: "bg-green-500",
           },
@@ -201,8 +275,7 @@ const AIInsightsPage: React.FC = () => {
             title: "Remote Work",
             query:
               "How many people are working from home today?: Answer in percentage",
-            value: "27%",
-            delta: -3.2,
+            value: `${stats.wfh_percentage}%`,
             icon: <Building className="h-4 w-4" />,
             color: "bg-blue-500",
           },
@@ -211,8 +284,8 @@ const AIInsightsPage: React.FC = () => {
             title: "Attendance Trend",
             query:
               "Show me attendance trends this month (last 30 days): Positive or Negative",
-            value: "Positive",
-            delta: 2.8,
+            value: trendLabel,
+            delta,
             icon: <TrendingUp className="h-4 w-4" />,
             color: "bg-purple-500",
           },
@@ -221,7 +294,7 @@ const AIInsightsPage: React.FC = () => {
             title: "Top Team",
             query:
               "Which team has the best attendance? (last 30 days): Name the team",
-            value: "Engineering",
+            value: topTeamFromTrends(trends, teams),
             icon: <Star className="h-4 w-4" />,
             color: "bg-amber-500",
           },
