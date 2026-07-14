@@ -54,7 +54,7 @@ import {
   getAttendanceStatusClass,
 } from "@/utils/formatters";
 import { Badge } from "@/components/ui/badge";
-import { format } from "date-fns";
+import { format, isToday } from "date-fns";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   Popover,
@@ -65,6 +65,7 @@ import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useForm, Controller } from "react-hook-form";
+import { useToast } from "@/hooks/use-toast";
 
 type AttendanceFormValues = {
   employeeId: string;
@@ -76,11 +77,14 @@ type AttendanceFormValues = {
 };
 
 const AttendancePage: React.FC = () => {
-  const { canManage } = useAuth();
+  const { canManage, employee } = useAuth();
+  const { toast } = useToast();
   // Data states
   const [attendance, setAttendance] = useState<Attendance[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
+  const [myToday, setMyToday] = useState<Attendance | null>(null);
+  const [selfActionLoading, setSelfActionLoading] = useState(false);
 
   // UI states
   const [loading, setLoading] = useState(true);
@@ -249,13 +253,15 @@ const AttendancePage: React.FC = () => {
   useEffect(() => {
     const fetchMasterData = async () => {
       try {
-        const [employeesData, teamsData] = await Promise.all([
+        const [employeesData, teamsData, todayRecord] = await Promise.all([
           employeeApi.getEmployees(),
           teamApi.getTeams(),
+          attendanceApi.getToday().catch(() => null),
         ]);
 
         setEmployees(employeesData);
         setTeams(teamsData);
+        setMyToday(todayRecord);
       } catch (error) {
         console.error("Error fetching master data:", error);
       }
@@ -264,14 +270,67 @@ const AttendancePage: React.FC = () => {
     fetchMasterData();
   }, []);
 
+  const refreshAttendanceList = useCallback(async () => {
+    const date = format(selectedDate, "yyyy-MM-dd");
+    const attendanceData = await attendanceApi.getAttendance(date, date);
+    setAttendance(attendanceData);
+  }, [selectedDate]);
+
+  const handleSelfCheckIn = useCallback(
+    async (status: "present" | "wfh") => {
+      setSelfActionLoading(true);
+      try {
+        const record = await attendanceApi.checkIn(status);
+        setMyToday(record);
+        if (isToday(selectedDate)) {
+          await refreshAttendanceList();
+        }
+        toast({
+          title: "Checked in",
+          description: status === "wfh" ? "Remote work check-in recorded." : "Office check-in recorded.",
+        });
+      } catch {
+        toast({
+          title: "Check-in failed",
+          description: "You may already be checked in for today.",
+          variant: "destructive",
+        });
+      } finally {
+        setSelfActionLoading(false);
+      }
+    },
+    [refreshAttendanceList, selectedDate, toast]
+  );
+
+  const handleSelfCheckOut = useCallback(async () => {
+    setSelfActionLoading(true);
+    try {
+      const record = await attendanceApi.checkOut();
+      setMyToday(record);
+      if (isToday(selectedDate)) {
+        await refreshAttendanceList();
+      }
+      toast({
+        title: "Checked out",
+        description: "Your check-out time has been recorded.",
+      });
+    } catch {
+      toast({
+        title: "Check-out failed",
+        description: "Check in first, or you may already be checked out.",
+        variant: "destructive",
+      });
+    } finally {
+      setSelfActionLoading(false);
+    }
+  }, [refreshAttendanceList, selectedDate, toast]);
+
   // Fetch attendance data when selected date changes
   useEffect(() => {
     const fetchAttendanceData = async () => {
       setLoading(true);
       try {
-        const date = format(selectedDate, "yyyy-MM-dd");
-        const attendanceData = await attendanceApi.getAttendance(date, date);
-        setAttendance(attendanceData);
+        await refreshAttendanceList();
       } catch (error) {
         console.error("Error fetching attendance data:", error);
       } finally {
@@ -280,7 +339,7 @@ const AttendancePage: React.FC = () => {
     };
 
     fetchAttendanceData();
-  }, [selectedDate]);
+  }, [refreshAttendanceList]);
 
   // Memoized filtered attendance
   const filteredAttendance = useMemo(() => {
@@ -354,6 +413,41 @@ const AttendancePage: React.FC = () => {
         </div>
 
         <div className="flex space-x-2">
+          {!myToday?.check_in && (
+            <>
+              <Button
+                variant="default"
+                disabled={selfActionLoading}
+                onClick={() => handleSelfCheckIn("present")}
+              >
+                <Check className="mr-2 h-4 w-4" />
+                Check in
+              </Button>
+              <Button
+                variant="secondary"
+                disabled={selfActionLoading}
+                onClick={() => handleSelfCheckIn("wfh")}
+              >
+                Check in (WFH)
+              </Button>
+            </>
+          )}
+          {myToday?.check_in && !myToday?.check_out && (
+            <Button
+              variant="outline"
+              disabled={selfActionLoading}
+              onClick={handleSelfCheckOut}
+            >
+              <Clock className="mr-2 h-4 w-4" />
+              Check out
+            </Button>
+          )}
+          {myToday?.check_in && myToday?.check_out && (
+            <Button variant="ghost" disabled>
+              Done for today
+              {employee ? ` · ${employee.first_name}` : ""}
+            </Button>
+          )}
           {canManage && (
           <Dialog
             open={dialogOpen}

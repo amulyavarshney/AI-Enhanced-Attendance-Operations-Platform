@@ -608,8 +608,8 @@ async def get_employee_attendance(
           response_model=schemas.Attendance,
           tags=["Attendance"],
           summary="Create Attendance Record",
-          description="Create a new attendance record for an employee.",
-          dependencies=[Depends(get_current_user)])
+          description="Create a new attendance record for an employee (manager/admin).",
+          dependencies=[Depends(require_roles("admin", "manager"))])
 async def create_attendance(
     attendance: schemas.AttendanceCreate,
     db: Session = Depends(get_db)
@@ -739,6 +739,78 @@ async def export_attendance_csv(
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
 
+@app.get("/attendance/today",
+         response_model=Optional[schemas.Attendance],
+         tags=["Attendance"],
+         summary="Get Today's Attendance For Me",
+         description="Return the authenticated user's attendance record for today, if any.")
+async def get_my_attendance_today(
+    db: Session = Depends(get_db),
+    current_user: models.Employee = AuthRequired,
+):
+    return crud.get_employee_attendance_for_date(db, current_user.id, date.today())
+
+@app.post("/attendance/check-in",
+          response_model=schemas.Attendance,
+          tags=["Attendance"],
+          summary="Self Check-In",
+          description="Check in the authenticated user for today.")
+async def self_check_in(
+    db: Session = Depends(get_db),
+    current_user: models.Employee = AuthRequired,
+    status: models.AttendanceType = Query(
+        models.AttendanceType.present,
+        description="Status for check-in: present or wfh",
+    ),
+):
+    if status not in (models.AttendanceType.present, models.AttendanceType.wfh):
+        raise HTTPException(status_code=400, detail="Check-in status must be present or wfh")
+
+    today = date.today()
+    existing = crud.get_employee_attendance_for_date(db, current_user.id, today)
+    if existing and existing.check_in:
+        raise HTTPException(status_code=409, detail="Already checked in for today")
+
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    payload = schemas.AttendanceCreate(
+        employee_id=current_user.id,
+        date=today,
+        status=status,
+        check_in=now,
+        check_out=None,
+        notes=existing.notes if existing else None,
+    )
+    try:
+        return crud.create_attendance(db, payload)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+
+@app.post("/attendance/check-out",
+          response_model=schemas.Attendance,
+          tags=["Attendance"],
+          summary="Self Check-Out",
+          description="Check out the authenticated user for today.")
+async def self_check_out(
+    db: Session = Depends(get_db),
+    current_user: models.Employee = AuthRequired,
+):
+    today = date.today()
+    existing = crud.get_employee_attendance_for_date(db, current_user.id, today)
+    if not existing or not existing.check_in:
+        raise HTTPException(status_code=404, detail="No check-in found for today")
+    if existing.check_out:
+        raise HTTPException(status_code=409, detail="Already checked out for today")
+
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    try:
+        return crud.update_attendance(
+            db,
+            existing.id,
+            schemas.AttendanceUpdate(check_out=now),
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+
 @app.get("/dashboard/stats",
          response_model=schemas.DashboardStats,
          tags=["Dashboard"],
@@ -808,8 +880,8 @@ async def get_attendance(
          response_model=schemas.Attendance,
          tags=["Attendance"],
          summary="Update Attendance Record",
-         description="Update an existing attendance record.",
-         dependencies=[Depends(get_current_user)])
+         description="Update an existing attendance record (manager/admin).",
+         dependencies=[Depends(require_roles("admin", "manager"))])
 async def update_attendance(
     attendance_id: int,
     attendance: schemas.AttendanceUpdate,

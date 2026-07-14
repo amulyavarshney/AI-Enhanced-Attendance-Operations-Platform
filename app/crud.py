@@ -261,6 +261,18 @@ def get_attendance_by_id(db: Session, attendance_id: int) -> Optional[models.Att
     """Get an attendance record by ID"""
     return db.query(models.Attendance).filter(models.Attendance.id == attendance_id).first()
 
+def get_employee_attendance_for_date(
+    db: Session, employee_id: int, target_date: date
+) -> Optional[models.Attendance]:
+    return (
+        db.query(models.Attendance)
+        .filter(
+            models.Attendance.employee_id == employee_id,
+            models.Attendance.date == target_date,
+        )
+        .first()
+    )
+
 def update_attendance(db: Session, attendance_id: int, attendance: schemas.AttendanceUpdate) -> models.Attendance:
     """Update an existing attendance record with validation"""
     db_attendance = get_attendance(db, attendance_id)

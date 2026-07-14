@@ -10,11 +10,11 @@ For detailed technical information, please refer to the [comprehensive documenta
 
 ## Key Features
 
-- Complete attendance management with create/update/delete and CSV export
+- Complete attendance management with create/update/delete, self check-in/out, and CSV export
 - Team and employee management with role-based access (employee, manager, admin)
 - Dashboard and Analytics wired to live APIs
 - AI-powered natural language insights (Azure OpenAI) with SQL safety and circuit breaker
-- JWT authentication, request logging, rate limiting, and audit logs
+- JWT authentication, password change, request logging, rate limiting, and audit logs
 - Docker Compose deployment with health probes and Alembic migrations
 - GitHub Actions CI for backend tests and frontend build
 
@@ -152,13 +152,17 @@ All business APIs require a JWT bearer token except health and login.
 1. `POST /auth/login` with `{ "email": "...", "password": "..." }`
 2. Use `Authorization: Bearer <access_token>` on subsequent requests
 3. `GET /auth/me` returns the current employee profile
+4. `POST /auth/change-password` updates the signed-in user's password
+5. Expired/invalid tokens clear the session and redirect to `/login?reason=expired`
 
 Seeded users share password `Admin123!` (including `admin@example.com`).
 
 Roles:
 - **admin**: full access including deletes and audit log listing
 - **manager**: manage teams/employees/attendance + AI insights
-- **employee**: read data and create/update attendance
+- **employee**: read data, self check-in/out, and change own password
+
+UI also hides manager/admin actions (mutations, AI Insights, Audit Logs) based on role.
 
 ## API Endpoints
 
@@ -170,6 +174,7 @@ Roles:
 ### Auth
 - `POST /auth/login`: Obtain JWT
 - `GET /auth/me`: Current user
+- `POST /auth/change-password`: Change own password
 
 ### Teams
 - `POST /teams`: Create a new team
@@ -192,12 +197,15 @@ Roles:
 - `GET /employees/{employee_id}/attendance`: Get attendance for an employee
 
 ### Attendance
-- `POST /attendance`: Create a new attendance record
+- `POST /attendance`: Create a new attendance record (manager/admin)
 - `GET /attendance`: Get all attendance records
 - `GET /attendance/page`: Paginated attendance
 - `GET /attendance/export`: Download attendance CSV
+- `GET /attendance/today`: Current user's attendance for today
+- `POST /attendance/check-in`: Self check-in for today (`present` or `wfh`)
+- `POST /attendance/check-out`: Self check-out for today
 - `GET /attendance/{attendance_id}`: Get a specific attendance record
-- `PUT /attendance/{attendance_id}`: Update an attendance record
+- `PUT /attendance/{attendance_id}`: Update an attendance record (manager/admin)
 - `DELETE /attendance/{attendance_id}`: Delete an attendance record
 
 ### Dashboard

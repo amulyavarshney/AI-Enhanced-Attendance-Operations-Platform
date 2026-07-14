@@ -37,3 +37,18 @@ def test_notifications_require_auth():
 def test_audit_logs_require_auth():
     response = client.get("/audit-logs")
     assert response.status_code == 401
+
+
+def test_self_check_in_requires_auth():
+    response = client.post("/attendance/check-in")
+    assert response.status_code == 401
+
+
+def test_self_check_out_requires_auth():
+    response = client.post("/attendance/check-out")
+    assert response.status_code == 401
+
+
+def test_attendance_today_requires_auth():
+    response = client.get("/attendance/today")
+    assert response.status_code == 401

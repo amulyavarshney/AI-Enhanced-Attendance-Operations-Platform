@@ -45,7 +45,7 @@ This document describes the current production-oriented architecture and operati
 
 2. **Backend API (FastAPI)**
    - CRUD + dashboard/analytics endpoints
-   - JWT auth (`/auth/login`, `/auth/me`) and RBAC dependencies
+   - JWT auth (`/auth/login`, `/auth/me`, `/auth/change-password`) and RBAC dependencies
    - AI insights with SQL safety + circuit breaker
    - Audit middleware for successful mutating requests
    - Notifications derived from audit events
@@ -69,10 +69,12 @@ This document describes the current production-oriented architecture and operati
 
 1. Obtain token: `POST /auth/login`
 2. Send `Authorization: Bearer <token>`
-3. Roles:
+3. Change password: `POST /auth/change-password`
+4. Roles:
    - **admin**: deletes, audit logs page/API
    - **manager**: team/employee mutations + AI
-   - **employee**: read + attendance create/update
+   - **employee**: read + self check-in/out + change password
+5. Frontend validates stored tokens with `GET /auth/me` on boot and redirects to `/login?reason=expired` on 401
 
 Seeded password for demo users: `Admin123!`  
 Admin: `admin@example.com`
@@ -289,10 +291,13 @@ The API documentation is available through Swagger UI at `http://localhost:8000/
 - `GET /employees/{employee_id}/attendance`: Get attendance for an employee
 
 #### 4.2.4 Attendance
-- `POST /attendance`: Create a new attendance record
+- `POST /attendance`: Create a new attendance record (manager/admin)
 - `GET /attendance`: Get all attendance records
+- `GET /attendance/today`: Current user's attendance for today
+- `POST /attendance/check-in`: Self check-in (`present` or `wfh`)
+- `POST /attendance/check-out`: Self check-out
 - `GET /attendance/{attendance_id}`: Get a specific attendance record
-- `PUT /attendance/{attendance_id}`: Update an attendance record
+- `PUT /attendance/{attendance_id}`: Update an attendance record (manager/admin)
 
 #### 4.2.5 AI Insights
 - `GET /ai/insights`: Get AI-generated insights
@@ -304,7 +309,7 @@ The API documentation is available through Swagger UI at `http://localhost:8000/
 
 ### 4.3 Authentication
 
-The API currently uses API key authentication for admin endpoints. In production, this should be replaced with a more secure authentication method like JWT tokens.
+JWT bearer authentication is required for business APIs. Obtain a token via `POST /auth/login`. Admin database reset still uses an optional `ADMIN_API_KEY` and is disabled when `APP_ENV=production`.
 
 ### 4.4 Error Handling
 

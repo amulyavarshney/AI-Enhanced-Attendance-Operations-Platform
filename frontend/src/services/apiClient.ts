@@ -205,6 +205,23 @@ export const attendanceApi = {
     });
     return response.data;
   },
+
+  getToday: async (): Promise<Attendance | null> => {
+    const response = await apiClient.get<Attendance | null>('/attendance/today');
+    return response.data;
+  },
+
+  checkIn: async (status: 'present' | 'wfh' = 'present'): Promise<Attendance> => {
+    const response = await apiClient.post<Attendance>(
+      '/attendance/check-in' + buildQueryParams({ status })
+    );
+    return response.data;
+  },
+
+  checkOut: async (): Promise<Attendance> => {
+    const response = await apiClient.post<Attendance>('/attendance/check-out');
+    return response.data;
+  },
 };
 
 // AI Insights API
