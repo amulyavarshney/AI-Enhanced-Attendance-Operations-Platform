@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Calendar, Check, Clock, Pencil, Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/context/AuthContext";
 import { Input } from "@/components/ui/input";
 import {
   Card,
@@ -75,6 +76,7 @@ type AttendanceFormValues = {
 };
 
 const AttendancePage: React.FC = () => {
+  const { canManage } = useAuth();
   // Data states
   const [attendance, setAttendance] = useState<Attendance[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -352,6 +354,7 @@ const AttendancePage: React.FC = () => {
         </div>
 
         <div className="flex space-x-2">
+          {canManage && (
           <Dialog
             open={dialogOpen}
             onOpenChange={(open) => {
@@ -520,6 +523,7 @@ const AttendancePage: React.FC = () => {
               </form>
             </DialogContent>
           </Dialog>
+          )}
         </div>
       </div>
 
@@ -693,6 +697,7 @@ const AttendancePage: React.FC = () => {
                         </div>
                       </TableCell>
                       <TableCell className="text-right">
+                        {canManage ? (
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button
@@ -723,6 +728,7 @@ const AttendancePage: React.FC = () => {
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
+                        ) : null}
                       </TableCell>
                     </TableRow>
                   ))}

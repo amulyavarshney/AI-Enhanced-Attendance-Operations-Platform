@@ -1,11 +1,15 @@
 import React, { createContext, useCallback, useContext, useMemo, useState } from "react";
-import { Employee } from "@/types/models";
+import { Employee, Role } from "@/types/models";
 import { authApi, clearAuthToken, getAuthToken, setAuthToken } from "@/services/apiClient";
 
 interface AuthContextValue {
   token: string | null;
   employee: Employee | null;
   isAuthenticated: boolean;
+  role: Role | null;
+  isAdmin: boolean;
+  canManage: boolean;
+  canUseAI: boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
 }
@@ -21,6 +25,15 @@ function loadStoredEmployee(): Employee | null {
   } catch {
     return null;
   }
+}
+
+function normalizeRole(role: Employee["role"] | undefined | null): Role | null {
+  if (!role) return null;
+  const value = String(role).toLowerCase();
+  if (value === Role.ADMIN) return Role.ADMIN;
+  if (value === Role.MANAGER) return Role.MANAGER;
+  if (value === Role.EMPLOYEE) return Role.EMPLOYEE;
+  return null;
 }
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -42,15 +55,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setEmployee(null);
   }, []);
 
+  const role = normalizeRole(employee?.role);
+  const isAdmin = role === Role.ADMIN;
+  const canManage = role === Role.ADMIN || role === Role.MANAGER;
+  const canUseAI = canManage;
+
   const value = useMemo(
     () => ({
       token,
       employee,
       isAuthenticated: Boolean(token),
+      role,
+      isAdmin,
+      canManage,
+      canUseAI,
       login,
       logout,
     }),
-    [token, employee, login, logout]
+    [token, employee, role, isAdmin, canManage, canUseAI, login, logout]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

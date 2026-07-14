@@ -26,6 +26,17 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
   return <>{children}</>;
 };
 
+const RoleRoute: React.FC<{
+  children: React.ReactNode;
+  allow: (auth: ReturnType<typeof useAuth>) => boolean;
+}> = ({ children, allow }) => {
+  const auth = useAuth();
+  if (!allow(auth)) {
+    return <Navigate to="/" replace />;
+  }
+  return <>{children}</>;
+};
+
 const AppRoutes = () => (
   <Routes>
     <Route path="/login" element={<Login />} />
@@ -42,8 +53,22 @@ const AppRoutes = () => (
       <Route path="attendance" element={<AttendancePage />} />
       <Route path="teams" element={<Teams />} />
       <Route path="analytics" element={<Analytics />} />
-      <Route path="ai-insights" element={<AIInsights />} />
-      <Route path="audit-logs" element={<AuditLogs />} />
+      <Route
+        path="ai-insights"
+        element={
+          <RoleRoute allow={(auth) => auth.canUseAI}>
+            <AIInsights />
+          </RoleRoute>
+        }
+      />
+      <Route
+        path="audit-logs"
+        element={
+          <RoleRoute allow={(auth) => auth.isAdmin}>
+            <AuditLogs />
+          </RoleRoute>
+        }
+      />
     </Route>
     <Route path="*" element={<NotFound />} />
   </Routes>

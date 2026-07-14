@@ -65,6 +65,10 @@ class TokenResponse(BaseModel):
 class AuthMeResponse(BaseModel):
     employee: Employee
 
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str
+
 class AttendanceBase(BaseModel):
     employee_id: int
     status: AttendanceType

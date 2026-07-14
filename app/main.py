@@ -17,7 +17,9 @@ from .auth import (
     authenticate_employee,
     create_access_token,
     get_current_user,
+    hash_password,
     require_roles,
+    verify_password,
     warn_if_insecure_defaults,
 )
 from .middleware import RequestLoggingMiddleware
@@ -156,6 +158,27 @@ async def login(credentials: schemas.LoginRequest, db: Session = Depends(get_db)
          description="Return the authenticated employee profile.")
 async def auth_me(current_user: models.Employee = AuthRequired):
     return schemas.AuthMeResponse(employee=schemas.Employee.model_validate(current_user))
+
+@app.post("/auth/change-password",
+          tags=["Auth"],
+          summary="Change Password",
+          description="Change the authenticated user's password.")
+async def change_password(
+    payload: schemas.ChangePasswordRequest,
+    db: Session = Depends(get_db),
+    current_user: models.Employee = AuthRequired,
+):
+    if len(payload.new_password) < 8:
+        raise HTTPException(status_code=400, detail="New password must be at least 8 characters")
+    if not verify_password(payload.current_password, current_user.hashed_password):
+        raise HTTPException(status_code=400, detail="Current password is incorrect")
+    if payload.current_password == payload.new_password:
+        raise HTTPException(status_code=400, detail="New password must differ from the current password")
+
+    current_user.hashed_password = hash_password(payload.new_password)
+    db.add(current_user)
+    db.commit()
+    return {"message": "Password updated successfully"}
 
 # Team Endpoints
 @app.post("/teams", 

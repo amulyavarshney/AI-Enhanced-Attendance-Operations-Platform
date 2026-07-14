@@ -26,6 +26,7 @@ import {
   employeeApi, 
   teamApi 
 } from "@/services/apiClient";
+import { useAuth } from "@/context/AuthContext";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { getInitials } from "@/utils/formatters";
 import { Progress } from "@/components/ui/progress";
@@ -250,6 +251,7 @@ const TeamCard: React.FC<TeamCardProps> = ({
 };
 
 const Teams: React.FC = () => {
+  const { canManage, isAdmin } = useAuth();
   const [teams, setTeams] = useState<Team[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [teamTrends, setTeamTrends] = useState<{ [key: number]: TeamTrends[] }>({});
@@ -463,6 +465,7 @@ const Teams: React.FC = () => {
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold tracking-tight">Teams</h1>
         
+        {canManage && (
         <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
           <DialogTrigger asChild>
             <Button>
@@ -507,6 +510,7 @@ const Teams: React.FC = () => {
             </Form>
           </DialogContent>
         </Dialog>
+        )}
       </div>
 
       {/* Edit Team Dialog */}
@@ -573,8 +577,8 @@ const Teams: React.FC = () => {
               team={team} 
               teamMembers={getTeamMembers(team.id)}
               teamTrends={getTeamTrends(team.id)}
-              onEdit={openEditDialog}
-              onDelete={handleDeleteTeam}
+              onEdit={canManage ? openEditDialog : undefined}
+              onDelete={isAdmin ? handleDeleteTeam : undefined}
               onViewAllMembers={openMembersDialog}
               onViewAnalytics={openAnalyticsDialog}
             />

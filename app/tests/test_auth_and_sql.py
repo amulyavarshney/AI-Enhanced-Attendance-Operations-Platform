@@ -92,3 +92,11 @@ def test_development_allows_default_secret(monkeypatch):
     monkeypatch.setattr(auth_module, "APP_ENV", "development")
     monkeypatch.setattr(auth_module, "JWT_SECRET_KEY", "dev-only-change-me-in-production")
     auth_module.warn_if_insecure_defaults()
+
+
+def test_change_password_schema_accepts_payload():
+    from app.schemas import ChangePasswordRequest
+
+    payload = ChangePasswordRequest(current_password="Admin123!", new_password="NewAdmin123!")
+    assert payload.current_password == "Admin123!"
+    assert len(payload.new_password) >= 8

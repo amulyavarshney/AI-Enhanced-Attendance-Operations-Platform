@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Search, Plus, Edit, Trash2, User, Filter } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -108,6 +109,7 @@ const employeeFormSchema = z.object({
 type EmployeeFormValues = z.infer<typeof employeeFormSchema>;
 
 const Employees: React.FC = () => {
+  const { canManage, isAdmin } = useAuth();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
   const [loading, setLoading] = useState(true);
@@ -311,6 +313,7 @@ const Employees: React.FC = () => {
     <div className="space-y-6 animate-fade-in">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold tracking-tight">Employees</h1>
+        {canManage && (
         <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
           <DialogTrigger asChild>
             <Button>
@@ -432,6 +435,7 @@ const Employees: React.FC = () => {
             </Form>
           </DialogContent>
         </Dialog>
+        )}
       </div>
       
       {/* Edit Employee Dialog */}
@@ -651,10 +655,14 @@ const Employees: React.FC = () => {
                       <TableCell>{employee.email}</TableCell>
                       <TableCell>{formatDate(employee.hire_date)}</TableCell>
                       <TableCell className="text-right">
+                        {(canManage || isAdmin) && (
                         <div className="flex justify-end space-x-1">
+                          {canManage && (
                           <Button variant="ghost" size="icon" onClick={() => openEditDialog(employee)}>
                             <Edit className="h-4 w-4" />
                           </Button>
+                          )}
+                          {isAdmin && (
                           <AlertDialog>
                             <AlertDialogTrigger asChild>
                               <Button variant="ghost" size="icon">
@@ -677,7 +685,9 @@ const Employees: React.FC = () => {
                               </AlertDialogFooter>
                             </AlertDialogContent>
                           </AlertDialog>
+                          )}
                         </div>
+                        )}
                       </TableCell>
                     </TableRow>
                   ))}

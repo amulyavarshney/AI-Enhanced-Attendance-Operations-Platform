@@ -15,12 +15,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { format } from "date-fns";
 
 const AuditLogs: React.FC = () => {
-  const { employee } = useAuth();
+  const { isAdmin } = useAuth();
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  const isAdmin = employee?.role === "admin";
 
   useEffect(() => {
     if (!isAdmin) return;
