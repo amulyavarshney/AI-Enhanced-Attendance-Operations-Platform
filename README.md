@@ -1,6 +1,30 @@
 # AI-Enhanced Attendance Operations Platform
 
-A modern attendance management system with AI-powered insights and analytics, built with FastAPI and React.
+Production-ready attendance operations with JWT/RBAC, self check-in/out, audit logs, and Azure OpenAI insights.
+
+**Author:** [amulyavarshney](https://github.com/amulyavarshney) · `amulyavarshney7@gmail.com`
+
+## Live demo & portfolio
+
+| Link | Description |
+|------|-------------|
+| [GitHub Pages UI](https://amulyavarshney.github.io/AI-Enhanced-Attendance-Operations-Platform/) | Demo frontend (enable Pages after push; set `VITE_API_URL` repo variable for a hosted API) |
+| [Portfolio case card](https://amulyavarshney.github.io/en/work/ai-attendance-operations) | Project listing on amulyavarshney.github.io |
+| [Repository](https://github.com/amulyavarshney/AI-Enhanced-Attendance-Operations-Platform) | Source, Docker Compose, docs |
+
+### Seeded demo logins
+
+| Role | Email | Password |
+|------|-------|----------|
+| Admin | `admin@example.com` | `Admin123!` |
+| Manager | `john.doe@example.com` | `Admin123!` |
+
+Full stack demo (API + DB + UI):
+
+```bash
+docker compose up --build
+# UI: http://localhost:3000  ·  API docs: http://localhost:8000/docs
+```
 
 ## Overview
 
@@ -11,12 +35,12 @@ For detailed technical information, please refer to the [comprehensive documenta
 ## Key Features
 
 - Complete attendance management with create/update/delete, self check-in/out, and CSV export
-- Team and employee management with role-based access (employee, manager, admin)
+- Team and employee management with role-based access (employee, manager, admin) and row-level read scoping
 - Dashboard and Analytics wired to live APIs
 - AI-powered natural language insights (Azure OpenAI) with SQL safety and circuit breaker
-- JWT authentication, password change, request logging, rate limiting, and audit logs
+- JWT access tokens + rotating refresh tokens, password change, request logging, rate limiting, and audit logs
 - Docker Compose deployment with health probes and Alembic migrations
-- GitHub Actions CI for backend tests and frontend build
+- GitHub Actions CI + GitHub Pages demo deploy
 
 ## Architecture
 
